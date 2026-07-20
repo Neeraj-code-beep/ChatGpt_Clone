@@ -46,8 +46,32 @@ async function loginUser(req, res) {
   const user = await userModel.findOne({
     email,
   });
+
+  if (!user) {
+    return res.status(400).json({ message: 'User not Found' });
+  }
+
+  const isPasswordValid = await bcrypt.compare(password, user.password);
+
+  if (!isPasswordValid) {
+    return res.status(400).json({ message: 'Invalid email or password' });
+  }
+
+  const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
+
+  res.cookie('token', token);
+
+  res.status(200).json({
+    message: 'User logged in successfully',
+    user: {
+      email: user.email,
+      _id: user._id,
+      fullName: user.fullName,
+    },
+  });
 }
 
 module.exports = {
   registerUser,
+  loginUser,
 };
