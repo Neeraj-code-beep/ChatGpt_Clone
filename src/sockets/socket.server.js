@@ -48,8 +48,6 @@ function initSocketServer(httpServer) {
       
       */
 
-      console.log(messagePayload);
-
       await messageModel.create({
         chat: messagePayload.chat,
         user: socket.user._id,
