@@ -11,6 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "@google/genai": "^2.13.0",
+    "@pinecone-database/pinecone": "^8.2.0",
     "bcryptjs": "^3.0.3",
     "cookie": "^0.7.2",
     "cookie-parser": "^1.4.7",
