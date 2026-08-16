@@ -83,7 +83,9 @@ function initSocketServer(httpServer) {
         );
         console.log('User vectors stored successfully.');
 
+        // This is the short term mermory...
         // Get last 20 messages
+
         const chatHistory = (
           await messageModel
             .find({
@@ -94,13 +96,36 @@ function initSocketServer(httpServer) {
             .lean()
         ).reverse();
 
-        // Generate AI response
-        const response = await aiService.generateResponse(
-          chatHistory.map((item) => ({
+        const stm = chatHistory.map((item) => {
+          return {
             role: item.role,
             parts: [{ text: item.content }],
-          })),
-        );
+          };
+        });
+
+        const ltm = [
+          {
+            role: 'user',
+            parts: [
+              {
+                text: `
+              these are some previous messages from the chat, use them to generate a response
+              ${memory.map((item) => item.metadata.text).join('\n')}
+              `,
+              },
+            ],
+          },
+        ];
+
+        // [...ltm, ...stm].map((item) => {
+        //   console.log(item);
+        // });
+
+        console.log(ltm[0]);
+        console.log(stm);
+
+        // Generate AI response
+        const response = await aiService.generateResponse([...ltm, ...stm]);
 
         // Save AI response
         const responseMessage = await messageModel.create({

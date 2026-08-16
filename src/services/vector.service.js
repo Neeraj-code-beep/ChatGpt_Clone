@@ -44,3 +44,34 @@ module.exports = {
   createMemory,
   queryMemory,
 };
+
+// practice
+
+// const { Pinecone } = require('@pinecone-database/pinecone');
+// const pc = new Pinecone({
+//   apiKey: process.env.PINECONE_API_KEY,
+// });
+
+// const chatGpt_Clone_Index = pc.Index('chatgptclone');
+// const index = pc.describeIndex('chatgptclone');
+
+// const createMemory = async (vectors, metadata, messageId) => {
+//   await chatGpt_Clone_Index.upsert({
+//     records: [{ id: messageId, values: vectors, metadata }],
+//   });
+//   console.log('Memory stored successfully');
+// };
+
+// const queryMemory = async({queryVector, limit = 5, metadata}) => {
+//   const data = await chatGpt_Clone_Index.query({
+//     vector: queryVector,
+//     topK: limit,
+//     filter: {
+//       chat: {$eq : metadata.chat },
+//       user: {$eq : metadata.user.toString}
+//     },
+//     includeMetadata = true
+//   });
+
+//   return data.matches
+// };
