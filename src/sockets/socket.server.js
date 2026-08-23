@@ -50,6 +50,7 @@ function initSocketServer(httpServer) {
         }
         */
 
+        /*
         // Save user message
         const message = await messageModel.create({
           chat: messagePayload.chat,
@@ -61,6 +62,39 @@ function initSocketServer(httpServer) {
         // Generate embedding for user message
         const vectors = await aiService.generateVector(messagePayload.content);
 
+        */
+
+        const [message, vectors] = await Promise.all([
+          messageModel.create({
+            chat: messagePayload.chat,
+            user: socket.user._id,
+            content: messagePayload.content,
+            role: 'user',
+          }),
+          aiService.generateVector(messagePayload.content),
+        ]);
+
+        const [memory, chatHistory] = await Promise.all([
+          queryMemory({
+            queryVector: vectors,
+            limit: 3,
+            metadata: {
+              chat: messagePayload.chat,
+              user: socket.user._id,
+            },
+          }),
+          messageModel
+            .find({
+              chat: messagePayload.chat,
+            })
+            .sort({ createdAt: -1 })
+            .limit(20)
+            .lean(),
+        ]);
+
+        console.log('LTM', memory);
+
+        /*
         const memory = await queryMemory({
           queryVector: vectors,
           limit: 3,
@@ -69,8 +103,6 @@ function initSocketServer(httpServer) {
             user: socket.user._id,
           },
         });
-
-        console.log(memory);
 
         await createMemory(
           vectors,
@@ -85,7 +117,6 @@ function initSocketServer(httpServer) {
 
         // This is the short term mermory...
         // Get last 20 messages
-
         const chatHistory = (
           await messageModel
             .find({
@@ -95,6 +126,17 @@ function initSocketServer(httpServer) {
             .limit(20)
             .lean()
         ).reverse();
+        */
+
+        await createMemory(
+          vectors,
+          {
+            chat: messagePayload.chat,
+            user: socket.user._id,
+            text: messagePayload.content,
+          },
+          message.id,
+        );
 
         const stm = chatHistory.map((item) => {
           return {
@@ -127,6 +169,7 @@ function initSocketServer(httpServer) {
         // Generate AI response
         const response = await aiService.generateResponse([...ltm, ...stm]);
 
+        /*
         // Save AI response
         const responseMessage = await messageModel.create({
           chat: messagePayload.chat,
@@ -134,9 +177,24 @@ function initSocketServer(httpServer) {
           content: response,
           role: 'model',
         });
-
         // Generate embedding for AI response
         const responseVectors = await aiService.generateVector(response);
+        */
+
+        socket.emit('ai-response', {
+          content: response,
+          chat: messagePayload.chat,
+        });
+
+        const [responseMessage, responseVectors] = await Promise.all([
+          messageModel.create({
+            chat: messagePayload.chat,
+            user: socket.user._id,
+            content: response,
+            role: 'model',
+          }),
+          aiService.generateVector(response),
+        ]);
 
         // Store AI response in Pinecone
         await createMemory(
@@ -150,11 +208,6 @@ function initSocketServer(httpServer) {
         );
 
         console.log('AI vectors stored successfully.');
-
-        socket.emit('ai-response', {
-          content: response,
-          chat: messagePayload.chat,
-        });
       } catch (err) {
         console.error('Socket Error:', err);
 

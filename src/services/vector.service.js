@@ -31,7 +31,7 @@ async function queryMemory({ queryVector, limit = 5, metadata }) {
     vector: queryVector,
     topK: limit,
     filter: {
-      chat: { $eq: metadata.chat },
+      // chat: { $eq: metadata.chat },
       user: { $eq: metadata.user.toString() },
     },
     includeMetadata: true,

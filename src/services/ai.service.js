@@ -8,6 +8,9 @@ async function generateResponse(content) {
   const response = await ai.models.generateContent({
     model: 'gemini-3.6-flash',
     contents: content,
+    config: {
+      temperature: 0.7 /* 0 <= n => 2 , low value means more predictive answers... , high values gives answers soo creative but chances of wrong reposnes too */,
+    },
   });
 
   return response.text;
