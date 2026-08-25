@@ -6,9 +6,27 @@ const messageSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
     },
+
     chat: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'chat',
+    },
+
+    requestId: {
+      type: String,
+      trim: true,
+    },
+
+    requestStatus: {
+      type: String,
+      enum: ['pending', 'completed', 'failed'],
+      default: 'pending',
+    },
+
+    responseMessageId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'message',
+      default: null,
     },
 
     content: {
@@ -24,6 +42,16 @@ const messageSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
+  },
+);
+
+messageSchema.index(
+  { chat: 1, requestId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      requestId: { $type: 'string' },
+    },
   },
 );
 
