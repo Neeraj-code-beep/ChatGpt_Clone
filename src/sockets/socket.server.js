@@ -12,6 +12,8 @@ const { buildContext } = require('../services/context.service');
 
 const { processMemories } = require('../services/memory.service');
 
+const PENDING_REQUEST_TIMEOUT_MS = 10 * 1000;
+
 function initSocketServer(httpServer) {
   const io = new Server(httpServer, {});
 
@@ -114,12 +116,15 @@ function initSocketServer(httpServer) {
         const existingRequest = await messageModel
           .findOne({
             chat,
-            user: socket.user._id,
             requestId: normalizedRequestId,
             role: 'user',
           })
-          .select('_id content requestStatus responseMessageId')
+          .select(
+            '_id content requestId requestStatus requestStartedAt responseMessageId',
+          )
           .lean();
+
+        let reuseExistingMessage = false;
 
         if (existingRequest) {
           if (existingRequest.requestStatus === 'completed') {
@@ -140,24 +145,73 @@ function initSocketServer(httpServer) {
           }
 
           if (existingRequest.requestStatus === 'pending') {
-            return socket.emit('ai-response', {
-              chat,
-              requestId: normalizedRequestId,
-              status: 'processing',
-              messageId: existingRequest._id,
-            });
-          }
+            const startedAt = existingRequest.requestStartedAt
+              ? new Date(existingRequest.requestStartedAt).getTime()
+              : null;
 
-          if (existingRequest.requestStatus === 'failed') {
-            // We'll allow the request to be retried.
-            await messageModel.updateOne(
-              { _id: existingRequest._id },
+            const isStale =
+              !startedAt || Date.now() - startedAt > PENDING_REQUEST_TIMEOUT_MS;
+
+            if (!isStale) {
+              return socket.emit('ai-response', {
+                chat,
+                requestId: normalizedRequestId,
+                status: 'processing',
+                messageId: existingRequest._id,
+              });
+            }
+
+            console.warn(
+              `Stale pending request detected: ${normalizedRequestId}`,
+            );
+
+            const staleRecovery = await messageModel.updateOne(
+              {
+                _id: existingRequest._id,
+                requestStatus: 'pending',
+              },
               {
                 $set: {
                   requestStatus: 'pending',
+                  requestStartedAt: new Date(),
                 },
               },
             );
+
+            if (staleRecovery.modifiedCount !== 1) {
+              return socket.emit('ai-response', {
+                chat,
+                requestId: normalizedRequestId,
+                status: 'processing',
+                messageId: existingRequest._id,
+              });
+            }
+          }
+
+          if (existingRequest.requestStatus === 'failed') {
+            const retryUpdate = await messageModel.updateOne(
+              {
+                _id: existingRequest._id,
+                requestStatus: 'failed',
+              },
+              {
+                $set: {
+                  requestStatus: 'pending',
+                  requestStartedAt: new Date(),
+                },
+              },
+            );
+
+            if (retryUpdate.modifiedCount !== 1) {
+              return socket.emit('ai-response', {
+                chat,
+                requestId: normalizedRequestId,
+                status: 'processing',
+                messageId: existingRequest._id,
+              });
+            }
+
+            reuseExistingMessage = true;
           }
         }
 
@@ -170,27 +224,34 @@ function initSocketServer(httpServer) {
         let queryVector;
 
         try {
-          [message, queryVector] = await Promise.all([
-            messageModel.create({
-              chat,
-              user: socket.user._id,
-              requestId: normalizedRequestId,
-              content,
-              role: 'user',
-            }),
+          if (reuseExistingMessage) {
+            message = existingRequest;
 
-            aiService.generateVector(content),
-          ]);
+            queryVector = await aiService.generateVector(content);
+          } else {
+            [message, queryVector] = await Promise.all([
+              messageModel.create({
+                chat,
+                user: socket.user._id,
+                requestId: normalizedRequestId,
+                content,
+                role: 'user',
+                requestStatus: 'pending',
+                requestStartedAt: new Date(),
+              }),
+
+              aiService.generateVector(content),
+            ]);
+          }
         } catch (error) {
           if (error?.code === 11000) {
             const existingMessage = await messageModel
               .findOne({
                 chat,
                 requestId: normalizedRequestId,
-                user: socket.user._id,
                 role: 'user',
               })
-              .select('_id requestStatus responseMessageId')
+              .select('_id requestStatus requestStartedAt responseMessageId')
               .lean();
 
             if (!existingMessage) {
@@ -208,15 +269,15 @@ function initSocketServer(httpServer) {
             }
 
             // Request already completed
-            if (existingMessage.requestStatus === 'completed') {
-              if (!existingMessage.responseMessageId) {
+            if (existingRequest.requestStatus === 'completed') {
+              if (!existingRequest.responseMessageId) {
                 throw new Error(
                   'Request is completed but response message is missing.',
                 );
               }
 
               const existingResponse = await messageModel
-                .findById(existingMessage.responseMessageId)
+                .findById(existingRequest.responseMessageId)
                 .select('_id content')
                 .lean();
 
@@ -237,8 +298,30 @@ function initSocketServer(httpServer) {
 
             // Failed requests are allowed to continue.
             if (existingMessage.requestStatus === 'failed') {
-              // Let the normal failed-request retry path handle it.
-              throw error;
+              const retryUpdate = await messageModel.updateOne(
+                {
+                  _id: existingMessage._id,
+                  requestStatus: 'failed',
+                },
+                {
+                  $set: {
+                    requestStatus: 'pending',
+                    requestStartedAt: new Date(),
+                  },
+                },
+              );
+
+              if (retryUpdate.modifiedCount !== 1) {
+                return socket.emit('ai-response', {
+                  chat,
+                  requestId: normalizedRequestId,
+                  status: 'processing',
+                  messageId: existingMessage._id,
+                });
+              }
+
+              message = existingMessage;
+              queryVector = await aiService.generateVector(content);
             }
 
             throw error;
@@ -317,6 +400,7 @@ function initSocketServer(httpServer) {
           content: response,
           chat,
           messageId: responseMessage._id,
+          requestId: normalizedRequestId,
         });
 
         // --------------------------------

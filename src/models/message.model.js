@@ -23,6 +23,10 @@ const messageSchema = new mongoose.Schema(
       default: 'pending',
     },
 
+    requestStartedAt: {
+      type: Date,
+    },
+
     responseMessageId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'message',
