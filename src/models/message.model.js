@@ -20,7 +20,6 @@ const messageSchema = new mongoose.Schema(
     requestStatus: {
       type: String,
       enum: ['pending', 'completed', 'failed'],
-      default: 'pending',
     },
 
     requestStartedAt: {
@@ -30,7 +29,6 @@ const messageSchema = new mongoose.Schema(
     responseMessageId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'message',
-      default: null,
     },
 
     content: {
