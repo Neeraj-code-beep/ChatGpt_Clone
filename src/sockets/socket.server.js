@@ -12,15 +12,70 @@ const { processMemories } = require('../services/memory.service');
 
 // How long a pending request can remain "fresh" before we consider it stale.
 // A stale request is one whose processing appears to have stopped (e.g. server
+// How long a pending request can remain "fresh" before we consider it stale.
+// A stale request is one whose processing appears to have stopped (e.g. server
 // crash, client disconnect) and can be safely reclaimed by a future retry.
 //
-// CURRENT VALUE: 10 seconds — intentionally short for testing stale-request
-// recovery. A production value should be chosen based on actual AI response
-// latency (typically 30-120s depending on model and context size).
-const PENDING_REQUEST_TIMEOUT_MS = 10 * 1000;
+// TIMEOUT RELATIONSHIP: Must be strictly greater than the maximum expected AI API
+// timeout (45s Gemini timeout + 15s margin = 60s default). Can be overridden via
+// process.env.PENDING_REQUEST_TIMEOUT_MS.
+const PENDING_REQUEST_TIMEOUT_MS = process.env.PENDING_REQUEST_TIMEOUT_MS
+  ? parseInt(process.env.PENDING_REQUEST_TIMEOUT_MS, 10)
+  : 60 * 1000;
 
 function initSocketServer(httpServer) {
-  const io = new Server(httpServer, {});
+  // Socket.IO CORS configuration:
+  // In production, process.env.CLIENT_ORIGIN is required. In development, defaults to local dev server origin.
+  const allowedOrigin =
+    process.env.CLIENT_ORIGIN ||
+    (process.env.NODE_ENV === 'production' ? false : 'http://localhost:5173');
+
+  const io = new Server(httpServer, {
+    cors: {
+      origin: allowedOrigin,
+      credentials: true,
+    },
+  });
+
+  // Lightweight in-memory rate limiter (single-instance deployment):
+  // Max 15 AI requests per 60-second window per user.
+  // Note: Documented limitation — for multi-instance scaling, a shared Redis store is required.
+  const rateLimitMap = new Map();
+  const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+  const MAX_REQUESTS_PER_WINDOW = 15;
+
+  // Periodic unref'd cleanup every 5 minutes to prevent memory leaks from inactive users
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, record] of rateLimitMap.entries()) {
+      if (now > record.resetAt) {
+        rateLimitMap.delete(key);
+      }
+    }
+  }, 5 * 60 * 1000).unref();
+
+  function isRateLimited(userId) {
+    const now = Date.now();
+    const userRecord = rateLimitMap.get(userId.toString()) || {
+      count: 0,
+      resetAt: now + RATE_LIMIT_WINDOW_MS,
+    };
+
+    if (now > userRecord.resetAt) {
+      userRecord.count = 1;
+      userRecord.resetAt = now + RATE_LIMIT_WINDOW_MS;
+      rateLimitMap.set(userId.toString(), userRecord);
+      return false;
+    }
+
+    if (userRecord.count >= MAX_REQUESTS_PER_WINDOW) {
+      return true;
+    }
+
+    userRecord.count += 1;
+    rateLimitMap.set(userId.toString(), userRecord);
+    return false;
+  }
 
   // ================================================================
   // AUTHENTICATION MIDDLEWARE
@@ -139,6 +194,14 @@ function initSocketServer(httpServer) {
         if (!chatDocument) {
           return socket.emit('ai-response', {
             error: 'Chat not found or access denied.',
+          });
+        }
+
+        // Abuse Protection: Rate limit check per authenticated user
+        if (isRateLimited(socket.user._id)) {
+          return socket.emit('ai-response', {
+            error: 'Rate limit exceeded. Please wait before sending more messages.',
+            requestId: currentRequestId,
           });
         }
 

@@ -5,15 +5,34 @@ const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
 });
 
-async function generateResponse(content) {
-  const response = await ai.models.generateContent({
-    model: 'gemini-3.6-flash',
-    contents: content,
-    config: {
-      temperature: 0.7 /* 0 <= n => 2 , low value means more predictive answers... , high values gives answers soo creative but chances of wrong reposnes too */,
-      systemInstruction: HELPER_SYSTEM_INSTRUCTION,
-    },
+const AI_TIMEOUT_MS = 45 * 1000; // 45s bounded timeout for Gemini API calls
+
+function withTimeout(promise, timeoutMs, operationName) {
+  let timer;
+  const timeoutPromise = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(`${operationName} timed out after ${timeoutMs / 1000}s`));
+    }, timeoutMs);
   });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    clearTimeout(timer);
+  });
+}
+
+async function generateResponse(content) {
+  const response = await withTimeout(
+    ai.models.generateContent({
+      model: 'gemini-3.6-flash',
+      contents: content,
+      config: {
+        temperature: 0.7,
+        systemInstruction: HELPER_SYSTEM_INSTRUCTION,
+      },
+    }),
+    AI_TIMEOUT_MS,
+    'Gemini response generation',
+  );
 
   return response.text;
 }
@@ -23,13 +42,17 @@ async function generateVector(content) {
     throw new Error('Content for embedding must be a non-empty string');
   }
 
-  const response = await ai.models.embedContent({
-    model: 'gemini-embedding-001',
-    contents: content,
-    config: {
-      outputDimensionality: 768,
-    },
-  });
+  const response = await withTimeout(
+    ai.models.embedContent({
+      model: 'gemini-embedding-001',
+      contents: content,
+      config: {
+        outputDimensionality: 768,
+      },
+    }),
+    AI_TIMEOUT_MS,
+    'Gemini embedding generation',
+  );
 
   const vector = response.embeddings?.[0]?.values;
 
