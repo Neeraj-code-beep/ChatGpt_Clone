@@ -2,6 +2,13 @@ const userModel = require('../models/user.model');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax',
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+};
+
 async function registerUser(req, res) {
   const {
     fullName: { firstName, lastName },
@@ -12,7 +19,7 @@ async function registerUser(req, res) {
   const isUserAlreadyExists = await userModel.findOne({ email });
 
   if (isUserAlreadyExists) {
-    res.status(400).json({ message: 'User already exists' });
+    return res.status(400).json({ message: 'User already exists' });
   }
 
   const hashPassword = await bcrypt.hash(password, 10);
@@ -26,9 +33,11 @@ async function registerUser(req, res) {
     password: hashPassword,
   });
 
-  const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
+  const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+    expiresIn: '7d',
+  });
 
-  res.cookie('token', token);
+  res.cookie('token', token, COOKIE_OPTIONS);
 
   res.status(201).json({
     message: 'User registered successfully',
@@ -57,9 +66,11 @@ async function loginUser(req, res) {
     return res.status(400).json({ message: 'Invalid email or password' });
   }
 
-  const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
+  const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+    expiresIn: '7d',
+  });
 
-  res.cookie('token', token);
+  res.cookie('token', token, COOKIE_OPTIONS);
 
   res.status(200).json({
     message: 'User logged in successfully',

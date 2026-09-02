@@ -57,6 +57,9 @@ messageSchema.index(
   },
 );
 
+// Index to optimize chat history retrieval (messageModel.find({ chat }).sort({ createdAt: -1 }).limit(20))
+messageSchema.index({ chat: 1, createdAt: -1 });
+
 const messageModel = mongoose.model('message', messageSchema);
 
 module.exports = messageModel;
