@@ -109,18 +109,6 @@ function calculateTypeRelevance(memoryType, queryTypes) {
   return queryTypes.includes(memoryType) ? 1 : 0;
 }
 
-function calculateTypeRelevance(memoryType, queryTypes) {
-  if (!memoryType || !Array.isArray(queryTypes)) {
-    return 0;
-  }
-
-  if (queryTypes.length === 0) {
-    return 0.5;
-  }
-
-  return queryTypes.includes(memoryType) ? 1 : 0;
-}
-
 function calculateRetrievalScore({ memory, query, queryIntent }) {
   const similarity = Number(memory.score ?? 0);
 
@@ -168,21 +156,25 @@ function rankMemories({ memories, query, queryIntent }) {
     .sort((a, b) => b.retrievalScore - a.retrievalScore);
 }
 
-async function retrieveMemories({ query, userId, limit = 5 }) {
-  const queryVector = await aiService.generateVector(query);
+// Reuses the pre-computed queryVector if provided to avoid a duplicate embedding API call.
+// Generating an embedding adds latency and cost; when the caller (socket.server.js)
+// already generated the vector in parallel during Step 1, we reuse it directly here.
+async function retrieveMemories({ query, queryVector, userId, limit = 5 }) {
+  const vector =
+    Array.isArray(queryVector) && queryVector.length === 768
+      ? queryVector
+      : await aiService.generateVector(query);
 
   const candidates = await findSimilarMemories({
-    vector: queryVector,
+    vector,
     user: userId,
     limit: 10,
   });
 
-  // 👇 NEW
   const queryIntent = await classifyQueryIntent(query);
 
   console.log('QUERY INTENT:', JSON.stringify(queryIntent, null, 2));
 
-  // 👇 UPDATED
   const ranked = rankMemories({
     memories: candidates,
     query,
