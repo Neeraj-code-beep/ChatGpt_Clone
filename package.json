@@ -1,12 +1,21 @@
 {
   "name": "chatgpt_clone",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Production-grade Node.js real-time AI conversation backend powered by Express, Socket.IO, Google Gemini, and Pinecone.",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "node -e \"console.log('No automated test runner configured; use node syntax/module checks')\""
   },
-  "keywords": [],
+  "keywords": [
+    "nodejs",
+    "socket.io",
+    "gemini",
+    "pinecone",
+    "ai",
+    "chatgpt"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
