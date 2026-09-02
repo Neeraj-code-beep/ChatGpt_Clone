@@ -72,11 +72,17 @@ stateDiagram-v2
 
 ---
 
-## Timeout Configuration
+## Timeout Configuration & Safety Relationship
 
 ```javascript
-const PENDING_REQUEST_TIMEOUT_MS = 10 * 1000; // 10 seconds
+const PENDING_REQUEST_TIMEOUT_MS = process.env.PENDING_REQUEST_TIMEOUT_MS
+  ? parseInt(process.env.PENDING_REQUEST_TIMEOUT_MS, 10)
+  : 60 * 1000; // 60 seconds (default)
 ```
 
-> [!NOTE]
-> The current configured timeout value is **10 seconds (10,000 ms)**. This short value is intentionally configured for testing stale-request recovery mechanisms under development. A production value should be chosen based on actual AI latency metrics (e.g. 30–120 seconds).
+> [!IMPORTANT]
+> **Timeout Hierarchy & Safety Margin**
+> - **External AI Timeout (`45 seconds`)**: `ai.service.js` enforces a bounded 45-second timeout on Google Gemini API calls (`generateResponse` & `generateVector`).
+> - **Stale Request Recovery Timeout (`60 seconds`)**: `socket.server.js` sets the stale recovery threshold to **60 seconds** (`PENDING_REQUEST_TIMEOUT_MS`).
+> - **Safety Relationship**: The stale recovery threshold (60s) is strictly greater than the maximum AI API timeout (45s). This prevents race conditions where an in-flight AI call is prematurely reclaimed while still generating a response.
+

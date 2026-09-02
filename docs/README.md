@@ -10,7 +10,7 @@ It prioritizes:
 - **Idempotent request processing** via unique client-supplied `requestId` keys.
 - **Low-latency critical response path** through parallelized database & embedding calls.
 - **Resilient request lifecycle tracking** with atomic compare-and-set stale recovery and retry mechanisms.
-- **Long-term semantic memory retrieval & background processing** powered by Pinecone vector search and Google Gemini.
+- **Production reliability** with environment validation, rate limiting, bounded timeouts, health checks, and graceful shutdown.
 
 ```mermaid
 flowchart TD
@@ -32,6 +32,10 @@ flowchart TD
 
 ## Documentation Structure
 
+### 🚀 Deployment & Operations
+- [Production Deployment Guide](file:///n:/Chatgpt_Clone/docs/deployment/deployment.md) — Running in production, health check endpoint (`GET /health`), environment setup, process managers, and graceful shutdown.
+- [Production Readiness Checklist](file:///n:/Chatgpt_Clone/docs/deployment/production-checklist.md) — Verification checklist across security, performance, database, environment secrets, and monitoring.
+
 ### 🏗️ Architecture
 - [Architecture Overview](file:///n:/Chatgpt_Clone/docs/architecture/overview.md) — Service topology, layer responsibilities, and end-to-end data flow.
 - [Request Lifecycle](file:///n:/Chatgpt_Clone/docs/architecture/request-lifecycle.md) — State machine (`pending` → `completed` / `failed`), recovery transitions, and state timing.
@@ -42,9 +46,9 @@ flowchart TD
 - [Error Handling](file:///n:/Chatgpt_Clone/docs/workflows/error-handling.md) — Error categories, failure state recording, client error formatting, and non-blocking background error handling.
 
 ### 💾 Database
-- [Database Schemas](file:///n:/Chatgpt_Clone/docs/database/schemas.md) — Data models (`User`, `Chat`, `Message`), role definitions, lifecycle fields, and known schema notes.
-- [Database Indexes](file:///n:/Chatgpt_Clone/docs/database/indexes.md) — Unique partial index `{ chat: 1, requestId: 1 }` design, query filtering, and performance impact.
+- [Database Schemas](file:///n:/Chatgpt_Clone/docs/database/schemas.md) — Data models (`User`, `Chat`, `Message`), role definitions, lifecycle fields, and historical migration notes.
+- [Database Indexes](file:///n:/Chatgpt_Clone/docs/database/indexes.md) — Unique partial index `{ chat: 1, requestId: 1 }` and chat history query index `{ chat: 1, createdAt: -1 }`.
 
 ### 🎯 Architecture & Performance Decisions
 - [Architecture Decision Records (ADRs)](file:///n:/Chatgpt_Clone/docs/decisions/architecture-decisions.md) — Key architectural choices (Socket.IO, requestId, background memory processing, etc.).
-- [Performance Decisions](file:///n:/Chatgpt_Clone/docs/decisions/performance-decisions.md) — Parallel execution optimizations, query vector reuse, history limits, and atomic query benchmarks.
+- [Performance Decisions](file:///n:/Chatgpt_Clone/docs/decisions/performance-decisions.md) — Parallel execution optimizations, query vector reuse, history limits, and bounded AI API timeouts.

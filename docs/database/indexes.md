@@ -4,7 +4,7 @@ This document documents the database index strategy, compound index definitions,
 
 ## Message Model Indexes ([`src/models/message.model.js`](file:///n:/Chatgpt_Clone/src/models/message.model.js))
 
-### Compound Unique Partial Index
+### 1. Compound Unique Partial Idempotency Index
 
 ```javascript
 messageSchema.index(
@@ -18,14 +18,20 @@ messageSchema.index(
 );
 ```
 
+### 2. Chat History Query Index
+
+```javascript
+messageSchema.index({ chat: 1, createdAt: -1 });
+```
+
 ---
 
 ## Technical Index Rationale
 
 ### 1. Why Compound Key (`{ chat: 1, requestId: 1 }`)?
 - `requestId` is supplied by the client app or frontend session.
-- Scope Uniqueness: A `requestId` is generated per chat thread session. Scoping `requestId` under `chat` guarantees uniqueness per chat session while preventing potential collisions across different chats.
-- Fast Lookup: Speeds up the critical application-level idempotency query:
+- **Scope Uniqueness**: Scoping `requestId` under `chat` guarantees uniqueness per chat session while preventing potential collisions across different chats.
+- **Fast Lookup**: Speeds up the critical application-level idempotency query:
   ```javascript
   messageModel.findOne({ chat, requestId, role: 'user' })
   ```
@@ -40,6 +46,13 @@ messageSchema.index(
 - Without partial filtering, MongoDB's unique index would index missing/null values, preventing more than one `requestId`-less message from existing per `chat`!
 - Partial filtering instructs MongoDB to index **only** documents where `requestId` is explicitly a string. Non-request messages (model responses) bypass this unique index cleanly.
 
+### 4. Why Chat History Index (`{ chat: 1, createdAt: -1 }`)?
+- Accelerates the Step 2 critical path query:
+  ```javascript
+  messageModel.find({ chat }).sort({ createdAt: -1 }).limit(20)
+  ```
+- Allows MongoDB to satisfy the query directly using index scanning without incurring an in-memory sort operation (`SORT_KEY_GENERATOR`).
+
 ---
 
 ## Summary Table
@@ -47,4 +60,5 @@ messageSchema.index(
 | Collection | Index Fields | Unique | Partial Filter | Purpose |
 |---|---|---|---|---|
 | `messages` | `{ chat: 1, requestId: 1 }` | `true` | `{ requestId: { $type: 'string' } }` | Idempotency enforcement & fast request lookups |
+| `messages` | `{ chat: 1, createdAt: -1 }` | `false` | None | Fast chat history retrieval without in-memory sorting |
 | `users` | `{ email: 1 }` | `true` | None | Unique user login credential lookup |
