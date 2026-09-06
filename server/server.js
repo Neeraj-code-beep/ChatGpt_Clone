@@ -35,7 +35,7 @@ async function gracefulShutdown(signal) {
   }, 10000);
 
   try {
-    // Stop accepting new HTTP connections
+    // Stop accepting new HTTP
     server.close(async () => {
       console.log('HTTP and Socket.IO servers closed.');
 

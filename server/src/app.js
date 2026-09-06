@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 
 /* Routes */
 const authRoutes = require('./routes/auth.routes');
-const chatRoutes = require('../src/routes/chat.routes');
+const chatRoutes = require('./routes/chat.routes');
 
 const app = express();
 
