@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "test": "node -e \"console.log('No automated test runner configured; use node syntax/module checks')\""
+    "test": "node test/api.test.js"
   },
   "keywords": [
     "nodejs",

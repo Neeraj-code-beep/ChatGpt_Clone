@@ -5,44 +5,74 @@ import ChatHeader from '../components/ChatHeader';
 import MessageFeed from '../components/MessageFeed';
 import Composer from '../components/Composer';
 import { useChatSocket } from '../hooks/useChatSocket';
-import { createChat } from '../api/chat.api';
+import { createChat, getChats, getChatMessages } from '../api/chat.api';
 import { useToast } from '../context/ToastContext';
-
-const LOCAL_CHATS_STORAGE_KEY = 'helper_local_chats';
 
 export default function ChatPage() {
   const { chatId: paramChatId } = useParams();
   const navigate = useNavigate();
   const { addToast } = useToast();
 
-  const [chats, setChats] = useState(() => {
-    try {
-      const stored = localStorage.getItem(LOCAL_CHATS_STORAGE_KEY);
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
-
+  const [chats, setChats] = useState([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedMode, setSelectedMode] = useState('auto');
   const [isCreatingChat, setIsCreatingChat] = useState(false);
 
-  // Sync local chats to localStorage
+  // 1. Fetch user's active chats list from backend on mount
   useEffect(() => {
-    try {
-      localStorage.setItem(LOCAL_CHATS_STORAGE_KEY, JSON.stringify(chats));
-    } catch {
-      // Storage error fallback
+    let isMounted = true;
+
+    async function loadChats() {
+      try {
+        const response = await getChats();
+        if (isMounted && Array.isArray(response?.chats)) {
+          setChats(response.chats);
+        }
+      } catch (err) {
+        console.error('Failed to load chats from server:', err);
+      }
     }
-  }, [chats]);
+
+    loadChats();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const activeChatId = paramChatId || (chats.length > 0 ? chats[0]._id : null);
   const currentChat = chats.find((c) => c._id === activeChatId);
 
-  // Socket communication hook for the active chat
-  const { messages, connectionStatus, isProcessing, sendMessage } =
+  // 2. Socket communication hook for the active chat
+  const { messages, connectionStatus, isProcessing, sendMessage, setMessages } =
     useChatSocket(activeChatId);
+
+  // 3. Load historical message turns when activeChatId changes
+  useEffect(() => {
+    if (!activeChatId) {
+      setMessages([]);
+      return;
+    }
+
+    let isMounted = true;
+
+    async function loadHistory() {
+      try {
+        const response = await getChatMessages(activeChatId);
+        if (isMounted && Array.isArray(response?.messages)) {
+          setMessages(response.messages);
+        }
+      } catch (err) {
+        console.error('Failed to load chat history:', err);
+      }
+    }
+
+    loadHistory();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeChatId, setMessages]);
 
   // Create a new chat session
   const handleCreateNewChat = useCallback(
@@ -80,7 +110,6 @@ export default function ChatPage() {
         content.slice(0, 30).trim() + (content.length > 30 ? '...' : '');
       const created = await handleCreateNewChat(generatedTitle || 'New Conversation');
       if (!created) return;
-      // When newly created chat is navigated, user message will send on activeChatId
       return;
     }
 

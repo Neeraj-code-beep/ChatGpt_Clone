@@ -84,27 +84,38 @@ flowchart TD
 
 | Method | Endpoint | Description | Auth Required |
 |---|---|---|---|
-| `POST` | `/api/auth/register` | Register a new user (`fullName`, `email`, `password`) | No |
-| `POST` | `/api/auth/login` | Authenticate user & set JWT cookie | No |
-| `POST` | `/api/chat/` | Create a new chat session (`title`) | Yes (Cookie JWT) |
+| `POST` | `/api/auth/register` | Register a new user (`fullName: { firstName, lastName }`, `email`, `password`) | No |
+| `POST` | `/api/auth/login` | Authenticate user & set HTTP-only JWT cookie (`token`) | No |
+| `GET` | `/api/auth/me` | Fetch authenticated user's safe profile (`_id`, `email`, `fullName`) | Yes (Cookie) |
+| `POST` | `/api/auth/logout` | Invalidate/clear authentication JWT cookie | No |
+| `GET` | `/api/chat` | List all chat sessions for the authenticated user | Yes (Cookie) |
+| `POST` | `/api/chat` | Create a new chat session (`title`) | Yes (Cookie) |
+| `GET` | `/api/chat/:id/messages` | Retrieve historical message turns for a chat (chronological) | Yes (Cookie) |
+| `PATCH` | `/api/chat/:id` | Update chat title (`title`) | Yes (Cookie) |
+| `DELETE` | `/api/chat/:id` | Delete a chat session and all associated message turns | Yes (Cookie) |
+| `GET` | `/health` | Server and MongoDB connection health check | No |
 
 ### Socket.IO Events
 
-- **Handshake Connection:** Automatically parses `token` from client request cookies.
+- **Handshake Connection:** Automatically parses `token` from client request cookies (`withCredentials: true`).
 - **Client Event — `ai-message`:**
   ```json
   {
     "chat": "<chat_id>",
-    "content": "What is vector search?"
+    "content": "What is vector search?",
+    "requestId": "<unique_request_uuid>"
   }
   ```
 - **Server Response Event — `ai-response`:**
   ```json
   {
     "content": "Vector search is a methodology...",
-    "chat": "<chat_id>"
+    "chat": "<chat_id>",
+    "messageId": "<message_id>",
+    "requestId": "<unique_request_uuid>"
   }
   ```
+
 
 ## Database Models
 

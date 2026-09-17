@@ -77,19 +77,23 @@ Native `fetch` abstraction with:
 
 ## 4. Backend Capabilities Matrix
 
-### Currently Available & Integrated
-- `POST /api/auth/register` — User registration.
+### Currently Available & Fully Integrated
+- `POST /api/auth/register` — User registration (standardized `fullName: { firstName, lastName }`).
 - `POST /api/auth/login` — User authentication and 7-day HTTP-only JWT cookie issuance.
-- `POST /api/chat/` — Chat session creation.
+- `GET /api/auth/me` — User session verification and profile hydration.
+- `POST /api/auth/logout` — Server-side cookie invalidation.
+- `GET /api/chat` — Authenticated user's active chat session list.
+- `POST /api/chat` — Chat session creation.
+- `GET /api/chat/:id/messages` — Historical message turns in chronological order.
+- `PATCH /api/chat/:id` — Chat title modification.
+- `DELETE /api/chat/:id` — Chat session deletion with cascading message cleanup.
 - `GET /health` — Service and database health monitoring.
 - Socket.IO `ai-message` & `ai-response` — Real-time turn exchange with `requestId` idempotency.
 
-### Backend Capabilities Still Required (Integration Gaps)
-1. **`GET /api/auth/me`**: To verify active session cookie on cold page reload.
-2. **`POST /api/auth/logout`**: To invalidate/clear the HTTP-only `token` cookie on the server.
-3. **`GET /api/chat`**: To fetch the authenticated user's active conversations list on the sidebar.
-4. **`GET /api/chat/:id/messages`**: To fetch historical messages when opening an existing chat thread.
-5. **`DELETE /api/chat/:id` & `PATCH /api/chat/:id`**: For chat deletion and renaming.
+### Future Backend Extension Points
+1. **Multi-Mode Parameter Passing:** Allowing the Socket.IO handler to accept a `mode` parameter (`auto`, `fast`, `deep`, `creative`) and adjust Gemini temperature/system instructions accordingly.
+2. **Message Token Streaming:** Transitioning `ai-message` to server-push token streaming when supported.
+
 
 ---
 

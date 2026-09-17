@@ -1,5 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { loginUser as apiLogin, registerUser as apiRegister } from '../api/auth.api';
+import {
+  loginUser as apiLogin,
+  registerUser as apiRegister,
+  getMe as apiGetMe,
+  logoutUser as apiLogout,
+} from '../api/auth.api';
 
 const AuthContext = createContext(null);
 
@@ -14,27 +19,13 @@ export function AuthProvider({ children }) {
       return null;
     }
   });
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Sync user metadata to session storage
-  useEffect(() => {
-    try {
-      if (user) {
-        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(user));
-      } else {
-        sessionStorage.removeItem(STORAGE_KEY);
-      }
-    } catch {
-      // Ignore storage errors in private browsing
-    }
-  }, [user]);
-
   /**
-   * Helper to normalize user shape from login/register responses.
-   * Note: register returns { fullname }, login returns { fullName }.
+   * Helper to normalize user shape from server responses.
    */
-  const normalizeUser = (rawUser) => {
+  const normalizeUser = useCallback((rawUser) => {
     if (!rawUser) return null;
     const fullNameObj = rawUser.fullName || rawUser.fullname || {};
     const firstName = fullNameObj.firstName || rawUser.firstName || 'User';
@@ -49,7 +40,51 @@ export function AuthProvider({ children }) {
       },
       displayName: `${firstName} ${lastName}`.trim() || rawUser.email,
     };
-  };
+  }, []);
+
+  // Hydrate session on initial mount via GET /api/auth/me
+  useEffect(() => {
+    let isMounted = true;
+
+    async function hydrateSession() {
+      try {
+        const response = await apiGetMe();
+        if (isMounted && response?.user) {
+          const normalized = normalizeUser(response.user);
+          setUser(normalized);
+        }
+      } catch {
+        // Unauthenticated or network error on cold reload
+        if (isMounted) {
+          setUser(null);
+          sessionStorage.removeItem(STORAGE_KEY);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    hydrateSession();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [normalizeUser]);
+
+  // Sync user metadata to session storage
+  useEffect(() => {
+    try {
+      if (user) {
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+      } else {
+        sessionStorage.removeItem(STORAGE_KEY);
+      }
+    } catch {
+      // Ignore storage errors in private browsing
+    }
+  }, [user]);
 
   const login = useCallback(async ({ email, password }) => {
     setIsLoading(true);
@@ -66,7 +101,7 @@ export function AuthProvider({ children }) {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [normalizeUser]);
 
   const register = useCallback(async ({ firstName, lastName, email, password }) => {
     setIsLoading(true);
@@ -83,15 +118,18 @@ export function AuthProvider({ children }) {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [normalizeUser]);
 
-  const logout = useCallback(() => {
-    // Note: Backend currently does not provide POST /api/auth/logout.
-    // We clear frontend session state. Once the backend endpoint is added,
-    // this will invoke apiLogout() to clear the HTTP-only cookie.
-    setUser(null);
-    setError(null);
-    sessionStorage.removeItem(STORAGE_KEY);
+  const logout = useCallback(async () => {
+    try {
+      await apiLogout();
+    } catch {
+      // Ignore logout API error
+    } finally {
+      setUser(null);
+      setError(null);
+      sessionStorage.removeItem(STORAGE_KEY);
+    }
   }, []);
 
   return (

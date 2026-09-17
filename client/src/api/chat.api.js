@@ -2,7 +2,7 @@ import { apiClient } from './client';
 
 /**
  * Chat API Service
- * Interacts with backend chat session endpoints.
+ * Interacts with backend chat session and history endpoints.
  */
 
 export async function createChat({ title = 'New Conversation' } = {}) {
@@ -14,12 +14,29 @@ export async function createChat({ title = 'New Conversation' } = {}) {
   });
 }
 
-/**
- * Backend Integration Note:
- * The following chat endpoints are currently NOT exposed by the backend:
- * - GET /api/chat (Fetch user's active chats list)
- * - GET /api/chat/:id/messages (Fetch message history for a chat session)
- * - PATCH /api/chat/:id (Rename chat)
- * - DELETE /api/chat/:id (Delete chat)
- * These will be wired here once supported on the backend.
- */
+export async function getChats() {
+  return apiClient('/api/chat', {
+    method: 'GET',
+  });
+}
+
+export async function getChatMessages(chatId) {
+  return apiClient(`/api/chat/${chatId}/messages`, {
+    method: 'GET',
+  });
+}
+
+export async function updateChatTitle(chatId, title) {
+  return apiClient(`/api/chat/${chatId}`, {
+    method: 'PATCH',
+    body: {
+      title: title.trim(),
+    },
+  });
+}
+
+export async function deleteChat(chatId) {
+  return apiClient(`/api/chat/${chatId}`, {
+    method: 'DELETE',
+  });
+}

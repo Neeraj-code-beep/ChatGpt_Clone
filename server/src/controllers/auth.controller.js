@@ -42,9 +42,9 @@ async function registerUser(req, res) {
   res.status(201).json({
     message: 'User registered successfully',
     user: {
-      email: user.email,
       _id: user._id,
-      fullname: user.fullName,
+      email: user.email,
+      fullName: user.fullName,
     },
   });
 }
@@ -75,14 +75,40 @@ async function loginUser(req, res) {
   res.status(200).json({
     message: 'User logged in successfully',
     user: {
-      email: user.email,
       _id: user._id,
+      email: user.email,
       fullName: user.fullName,
     },
+  });
+}
+
+async function getMe(req, res) {
+  const user = req.user;
+
+  res.status(200).json({
+    user: {
+      _id: user._id,
+      email: user.email,
+      fullName: user.fullName,
+    },
+  });
+}
+
+async function logoutUser(req, res) {
+  res.clearCookie('token', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+  });
+
+  res.status(200).json({
+    message: 'User logged out successfully',
   });
 }
 
 module.exports = {
   registerUser,
   loginUser,
+  getMe,
+  logoutUser,
 };

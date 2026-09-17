@@ -2,8 +2,7 @@ import { apiClient } from './client';
 
 /**
  * Authentication API Service
- * Handles user registration and login.
- * Note: Session persistence relies on the HTTP-only JWT cookie set by the server.
+ * Handles user registration, login, session hydration, and logout.
  */
 
 export async function registerUser({ firstName, lastName, email, password }) {
@@ -30,10 +29,14 @@ export async function loginUser({ email, password }) {
   });
 }
 
-/**
- * Backend Integration Note:
- * The following endpoints are currently NOT exposed by the backend:
- * - GET /api/auth/me (User session hydration)
- * - POST /api/auth/logout (Cookie invalidation)
- * These will be wired here once implemented on the backend.
- */
+export async function getMe() {
+  return apiClient('/api/auth/me', {
+    method: 'GET',
+  });
+}
+
+export async function logoutUser() {
+  return apiClient('/api/auth/logout', {
+    method: 'POST',
+  });
+}
