@@ -12,8 +12,6 @@ const { processMemories } = require('../services/memory.service');
 
 // How long a pending request can remain "fresh" before we consider it stale.
 // A stale request is one whose processing appears to have stopped (e.g. server
-// How long a pending request can remain "fresh" before we consider it stale.
-// A stale request is one whose processing appears to have stopped (e.g. server
 // crash, client disconnect) and can be safely reclaimed by a future retry.
 //
 // TIMEOUT RELATIONSHIP: Must be strictly greater than the maximum expected AI API
@@ -638,7 +636,7 @@ function initSocketServer(httpServer) {
         }
 
         socket.emit('ai-response', {
-          error: err.message || 'Something went wrong.',
+          error: 'Something went wrong. Please try again.',
           requestId: currentRequestId,
         });
       }

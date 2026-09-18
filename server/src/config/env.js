@@ -25,7 +25,9 @@ function validateEnv() {
     jwtSecret: process.env.JWT_SECRET,
     geminiApiKey: process.env.GEMINI_API_KEY,
     pineconeApiKey: process.env.PINECONE_API_KEY,
-    clientOrigin: process.env.CLIENT_ORIGIN || true,
+    clientOrigin:
+      process.env.CLIENT_ORIGIN ||
+      (process.env.NODE_ENV === 'production' ? false : 'http://localhost:5173'),
   };
 }
 

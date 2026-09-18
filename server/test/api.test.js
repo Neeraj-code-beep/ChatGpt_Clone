@@ -240,7 +240,92 @@ async function runTests() {
     assert.strictEqual(messagesInDb.length, 0, 'Associated messages should be deleted');
     console.log('✓ Passed: Chat and associated messages cleanly deleted\n');
 
-    console.log('=== All 14 Test Cases Passed Successfully! ===\n');
+    // 15. AUTH TOKEN FOR DELETED/NON-EXISTENT USER (401 check)
+    console.log('Test 15: Auth middleware with valid JWT for non-existent user returns 401');
+    const ghostUserId = new mongoose.Types.ObjectId();
+    const ghostToken = jwt.sign({ id: ghostUserId }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    const ghostRes = await request('/api/auth/me', { cookie: `token=${ghostToken}` });
+    assert.strictEqual(ghostRes.status, 401, 'Must reject token for deleted/non-existent user with 401');
+    console.log('✓ Passed: Ghost user token safely rejected with 401\n');
+
+    // 16. MALFORMED REGISTRATION PAYLOADS
+    console.log('Test 16: POST /api/auth/register rejects malformed bodies');
+    const emptyRegRes = await request('/api/auth/register', {
+      method: 'POST',
+      body: {},
+    });
+    assert.strictEqual(emptyRegRes.status, 400);
+
+    const missingNameRes = await request('/api/auth/register', {
+      method: 'POST',
+      body: { email: 'bad@example.com', password: 'password123' },
+    });
+    assert.strictEqual(missingNameRes.status, 400);
+
+    const shortPassRes = await request('/api/auth/register', {
+      method: 'POST',
+      body: {
+        fullName: { firstName: 'Bad', lastName: 'Pass' },
+        email: 'badpass@example.com',
+        password: '123',
+      },
+    });
+    assert.strictEqual(shortPassRes.status, 400);
+    console.log('✓ Passed: Malformed registration payloads rejected with 400\n');
+
+    // 17. MALFORMED LOGIN PAYLOADS
+    console.log('Test 17: POST /api/auth/login rejects malformed bodies');
+    const emptyLoginRes = await request('/api/auth/login', {
+      method: 'POST',
+      body: {},
+    });
+    assert.strictEqual(emptyLoginRes.status, 400);
+
+    const missingPassLogin = await request('/api/auth/login', {
+      method: 'POST',
+      body: { email: 'test_b@example.com' },
+    });
+    assert.strictEqual(missingPassLogin.status, 400);
+    console.log('✓ Passed: Malformed login payloads rejected with 400\n');
+
+    // 18. CHAT TITLE BOUNDARY VALIDATION
+    console.log('Test 18: Chat title boundary validation on create/patch');
+    const newChatRes = await request('/api/chat', {
+      method: 'POST',
+      cookie: tokenCookieB,
+      body: { title: 'Valid Title' },
+    });
+    assert.strictEqual(newChatRes.status, 201);
+    const chatBId = newChatRes.body.chat._id;
+
+    const emptyTitleRes = await request(`/api/chat/${chatBId}`, {
+      method: 'PATCH',
+      cookie: tokenCookieB,
+      body: { title: '   ' },
+    });
+    assert.strictEqual(emptyTitleRes.status, 400);
+
+    const longTitleRes = await request(`/api/chat/${chatBId}`, {
+      method: 'PATCH',
+      cookie: tokenCookieB,
+      body: { title: 'A'.repeat(101) },
+    });
+    assert.strictEqual(longTitleRes.status, 400);
+
+    // Clean up Chat B
+    await chatModel.deleteOne({ _id: chatBId });
+    console.log('✓ Passed: Chat title boundary checks enforced\n');
+
+    // 19. HEALTH CHECK ENDPOINT
+    console.log('Test 19: GET /health returns 200 and connected status');
+    const healthRes = await request('/health');
+    assert.strictEqual(healthRes.status, 200);
+    assert.strictEqual(healthRes.body.status, 'ok');
+    assert.strictEqual(healthRes.body.database, 'connected');
+    assert.strictEqual(typeof healthRes.body.uptime, 'number');
+    console.log('✓ Passed: Health check endpoint verified\n');
+
+    console.log('=== All 19 Test Cases Passed Successfully! ===\n');
   } finally {
     // Clean up created test data
     if (testUserA) await userModel.deleteOne({ _id: testUserA._id });
