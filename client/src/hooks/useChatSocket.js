@@ -153,8 +153,9 @@ export function useChatSocket(chatId) {
    * Generates a unique requestId to enforce backend idempotency.
    */
   const sendMessage = useCallback(
-    async (content) => {
-      if (!content || !content.trim() || !chatId) return false;
+    async (content, explicitChatId = null) => {
+      const destinationChatId = explicitChatId || chatId;
+      if (!content || !content.trim() || !destinationChatId) return false;
 
       const trimmedContent = content.trim();
       const requestId = crypto.randomUUID();
@@ -182,7 +183,7 @@ export function useChatSocket(chatId) {
 
       // Backend expects: { chat, content, requestId }
       socket.emit('ai-message', {
-        chat: chatId,
+        chat: destinationChatId,
         content: trimmedContent,
         requestId,
       });

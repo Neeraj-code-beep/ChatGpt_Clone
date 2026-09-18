@@ -2,12 +2,15 @@ import React, { useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { motion } from 'framer-motion';
-import { Sparkles, User, AlertCircle, Loader2 } from 'lucide-react';
+import { Sparkles, User, AlertCircle, Loader2, RotateCcw } from 'lucide-react';
 import CodeBlock from './CodeBlock';
 
 export default function MessageFeed({
   messages = [],
   isProcessing = false,
+  isLoadingHistory = false,
+  historyError = null,
+  onRetryLoadHistory,
   onStarterPromptClick,
 }) {
   const bottomRef = useRef(null);
@@ -16,6 +19,62 @@ export default function MessageFeed({
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isProcessing]);
 
+  // 1. History Loading Skeleton State
+  if (isLoadingHistory) {
+    return (
+      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-6 max-w-3xl mx-auto w-full">
+        {/* Skeleton User Turn */}
+        <div className="flex items-start gap-3 sm:gap-4 flex-row-reverse">
+          <div className="w-7 h-7 rounded-lg bg-[#27272A] shrink-0 animate-pulse" />
+          <div className="w-48 sm:w-64 h-12 rounded-2xl bg-[#27272A]/70 animate-pulse rounded-tr-sm" />
+        </div>
+
+        {/* Skeleton Assistant Turn */}
+        <div className="flex items-start gap-3 sm:gap-4 flex-row">
+          <div className="w-7 h-7 rounded-lg bg-[#18181B] border border-[#27272A] shrink-0 animate-pulse" />
+          <div className="space-y-2 flex-1 max-w-[80%]">
+            <div className="w-full h-16 rounded-2xl bg-[#18181B] border border-[#27272A] animate-pulse rounded-tl-sm" />
+            <div className="w-3/4 h-8 rounded-xl bg-[#18181B]/80 animate-pulse" />
+          </div>
+        </div>
+
+        {/* Skeleton User Turn 2 */}
+        <div className="flex items-start gap-3 sm:gap-4 flex-row-reverse">
+          <div className="w-7 h-7 rounded-lg bg-[#27272A] shrink-0 animate-pulse" />
+          <div className="w-36 sm:w-52 h-10 rounded-2xl bg-[#27272A]/70 animate-pulse rounded-tr-sm" />
+        </div>
+      </div>
+    );
+  }
+
+  // 2. History Error State
+  if (historyError) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center max-w-md mx-auto w-full">
+        <div className="w-10 h-10 rounded-xl bg-[#1C1414] border border-[#7F1D1D]/50 flex items-center justify-center mb-3 text-[#F87171]">
+          <AlertCircle className="w-5 h-5" />
+        </div>
+        <h2 className="text-sm font-semibold text-[#FAFAFA] tracking-tight">
+          Failed to load conversation history
+        </h2>
+        <p className="text-xs text-[#A1A1AA] mt-1 mb-4 leading-relaxed">
+          {historyError}
+        </p>
+        {onRetryLoadHistory && (
+          <button
+            type="button"
+            onClick={onRetryLoadHistory}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#27272A] hover:bg-[#3F3F46] text-[#FAFAFA] text-xs font-medium transition-colors cursor-pointer"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Retry loading messages</span>
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  // 3. Empty Message State (Starter Prompts)
   if (messages.length === 0) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-6 text-center max-w-2xl mx-auto w-full">

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -8,7 +8,12 @@ import {
   LogOut,
   User,
   X,
-  ExternalLink,
+  Pencil,
+  Trash2,
+  Check,
+  RotateCcw,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -19,13 +24,105 @@ export default function Sidebar({
   activeChatId = null,
   onNewChat,
   isCreatingChat = false,
+  isLoadingChats = false,
+  chatListError = null,
+  onRetryLoadChats,
+  onRenameChat,
+  onDeleteChat,
 }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
+  // Rename state
+  const [editingChatId, setEditingChatId] = useState(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [isRenaming, setIsRenaming] = useState(false);
+
+  // Delete state
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+
+  const startRename = (e, chat) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setConfirmingDeleteId(null);
+    setEditingChatId(chat._id);
+    setEditTitle(chat.title || '');
+  };
+
+  const cancelRename = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    setEditingChatId(null);
+    setEditTitle('');
+  };
+
+  const handleSaveRename = async (e, chatId) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    const trimmed = editTitle.trim();
+    if (!trimmed || trimmed.length > 100) return;
+
+    setIsRenaming(true);
+    try {
+      if (onRenameChat) {
+        await onRenameChat(chatId, trimmed);
+      }
+      setEditingChatId(null);
+      setEditTitle('');
+    } finally {
+      setIsRenaming(false);
+    }
+  };
+
+  const handleRenameKeyDown = (e, chatId) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSaveRename(e, chatId);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelRename(e);
+    }
+  };
+
+  const startDelete = (e, chatId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setEditingChatId(null);
+    setConfirmingDeleteId(chatId);
+  };
+
+  const cancelDelete = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    setConfirmingDeleteId(null);
+  };
+
+  const handleConfirmDelete = async (e, chatId) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    setIsDeleting(true);
+    try {
+      if (onDeleteChat) {
+        await onDeleteChat(chatId);
+      }
+      setConfirmingDeleteId(null);
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const content = (
@@ -75,32 +172,167 @@ export default function Sidebar({
           Recent Conversations
         </div>
 
-        {chats.length === 0 ? (
+        {/* Loading Skeletons */}
+        {isLoadingChats ? (
+          <div className="space-y-2 px-2 py-2">
+            {[1, 2, 3, 4].map((i) => (
+              <div
+                key={i}
+                className="h-8 rounded-xl bg-[#1C1C20] animate-pulse"
+                style={{ opacity: 1 - i * 0.18 }}
+              />
+            ))}
+          </div>
+        ) : chatListError ? (
+          /* Error State */
+          <div className="px-3 py-4 text-center text-xs text-[#A1A1AA] bg-[#18181B] rounded-xl border border-[#27272A] m-2 space-y-2">
+            <div className="flex items-center justify-center gap-1.5 text-[#F97316]">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              <span className="font-medium">Failed to load chats</span>
+            </div>
+            <p className="text-[11px] text-[#71717A]">{chatListError}</p>
+            {onRetryLoadChats && (
+              <button
+                type="button"
+                onClick={onRetryLoadChats}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#27272A] hover:bg-[#3F3F46] text-[#FAFAFA] text-[11px] transition-colors cursor-pointer"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>Retry</span>
+              </button>
+            )}
+          </div>
+        ) : chats.length === 0 ? (
+          /* Empty State */
           <div className="px-3 py-6 text-center text-xs text-[#71717A] leading-relaxed">
             No active conversations. Start a new chat to begin.
           </div>
         ) : (
+          /* Chat Items */
           chats.map((chat) => {
             const isActive = chat._id === activeChatId;
+            const isEditing = editingChatId === chat._id;
+            const isConfirmingDelete = confirmingDeleteId === chat._id;
+
+            if (isEditing) {
+              return (
+                <div
+                  key={chat._id}
+                  className="flex items-center gap-1.5 px-2 py-1 rounded-xl bg-[#1C1C20] border border-[#3F3F46]"
+                >
+                  <input
+                    type="text"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    onKeyDown={(e) => handleRenameKeyDown(e, chat._id)}
+                    maxLength={100}
+                    autoFocus
+                    disabled={isRenaming}
+                    className="flex-1 bg-transparent px-1.5 py-0.5 text-xs text-[#FAFAFA] focus:outline-none placeholder:text-[#71717A]"
+                  />
+                  <button
+                    type="button"
+                    onClick={(e) => handleSaveRename(e, chat._id)}
+                    disabled={isRenaming || !editTitle.trim()}
+                    className="p-1 rounded text-[#10B981] hover:bg-[#27272A] disabled:opacity-40"
+                    title="Save title (Enter)"
+                    aria-label="Save title"
+                  >
+                    {isRenaming ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Check className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={cancelRename}
+                    disabled={isRenaming}
+                    className="p-1 rounded text-[#71717A] hover:text-[#FAFAFA] hover:bg-[#27272A]"
+                    title="Cancel (Esc)"
+                    aria-label="Cancel rename"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              );
+            }
+
+            if (isConfirmingDelete) {
+              return (
+                <div
+                  key={chat._id}
+                  className="flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#1C1414] border border-[#7F1D1D]/50 text-xs"
+                >
+                  <span className="text-[#FCA5A5] text-[11px] font-medium">Delete chat?</span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={(e) => handleConfirmDelete(e, chat._id)}
+                      disabled={isDeleting}
+                      className="px-2 py-0.5 rounded bg-[#DC2626] hover:bg-[#B91C1C] text-white text-[10px] font-medium transition-colors disabled:opacity-50"
+                      aria-label="Confirm delete"
+                    >
+                      {isDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Delete'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelDelete}
+                      disabled={isDeleting}
+                      className="px-1.5 py-0.5 rounded text-[#A1A1AA] hover:text-[#FAFAFA] hover:bg-[#27272A] text-[10px] transition-colors"
+                      aria-label="Cancel delete"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              );
+            }
 
             return (
-              <Link
+              <div
                 key={chat._id}
-                to={`/chat/${chat._id}`}
-                onClick={onClose}
-                className={`group flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs transition-colors ${
+                className={`group relative flex items-center rounded-xl text-xs transition-colors ${
                   isActive
                     ? 'bg-[#27272A] text-[#FAFAFA] font-medium border border-[#3F3F46]/50'
                     : 'text-[#A1A1AA] hover:bg-[#1C1C20] hover:text-[#FAFAFA]'
                 }`}
               >
-                <MessageSquare
-                  className={`w-3.5 h-3.5 shrink-0 ${
-                    isActive ? 'text-[#FAFAFA]' : 'text-[#71717A] group-hover:text-[#A1A1AA]'
-                  }`}
-                />
-                <span className="truncate flex-1">{chat.title || 'Conversation'}</span>
-              </Link>
+                <Link
+                  to={`/chat/${chat._id}`}
+                  onClick={onClose}
+                  className="flex items-center gap-2.5 px-3 py-2 flex-1 min-w-0"
+                >
+                  <MessageSquare
+                    className={`w-3.5 h-3.5 shrink-0 ${
+                      isActive ? 'text-[#FAFAFA]' : 'text-[#71717A] group-hover:text-[#A1A1AA]'
+                    }`}
+                  />
+                  <span className="truncate flex-1">{chat.title || 'Conversation'}</span>
+                </Link>
+
+                {/* Inline Action Buttons (Rename & Delete) */}
+                <div className="hidden group-hover:flex items-center gap-0.5 pr-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={(e) => startRename(e, chat)}
+                    className="p-1 rounded text-[#71717A] hover:text-[#FAFAFA] hover:bg-[#27272A] transition-colors"
+                    title="Rename chat"
+                    aria-label="Rename conversation"
+                  >
+                    <Pencil className="w-3 h-3" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => startDelete(e, chat._id)}
+                    className="p-1 rounded text-[#71717A] hover:text-[#EF4444] hover:bg-[#27272A] transition-colors"
+                    title="Delete chat"
+                    aria-label="Delete conversation"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
             );
           })
         )}

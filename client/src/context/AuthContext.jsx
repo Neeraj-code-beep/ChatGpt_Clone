@@ -5,6 +5,7 @@ import {
   getMe as apiGetMe,
   logoutUser as apiLogout,
 } from '../api/auth.api';
+import { disconnectSocket } from '../services/socket';
 
 const AuthContext = createContext(null);
 
@@ -126,6 +127,7 @@ export function AuthProvider({ children }) {
     } catch {
       // Ignore logout API error
     } finally {
+      disconnectSocket();
       setUser(null);
       setError(null);
       sessionStorage.removeItem(STORAGE_KEY);
