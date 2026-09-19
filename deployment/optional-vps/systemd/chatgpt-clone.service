@@ -1,0 +1,42 @@
+[Unit]
+Description=ChatGPT Clone Real-Time AI Backend Service
+After=network.target
+
+[Service]
+Type=simple
+User=deploy
+Group=deploy
+WorkingDirectory=/var/www/chatgpt-clone/server
+
+# Environment configuration
+EnvironmentFile=/var/www/chatgpt-clone/server/.env
+Environment=NODE_ENV=production
+
+# Execution command
+ExecStart=/usr/bin/node server.js
+
+# Restart on unexpected failure with backoff
+Restart=always
+RestartSec=5s
+
+# Graceful shutdown configuration
+KillSignal=SIGTERM
+TimeoutStopSec=15s
+SendSIGKILL=yes
+
+# Security & Sandbox settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+
+# Resource Limits
+LimitNOFILE=65536
+
+# Standard Output / Error logging directed to systemd journal
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=chatgpt-clone
+
+[Install]
+WantedBy=multi-user.target

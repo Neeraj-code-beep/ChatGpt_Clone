@@ -2,6 +2,8 @@
 
 A full-stack, real-time conversational AI workspace featuring a React + Vite frontend and a Node.js + Express + Socket.IO backend powered by Google Gemini and Pinecone vector search.
 
+Designed for **$0/month free hosting** on Render and MongoDB Atlas.
+
 ---
 
 ## Repository Structure
@@ -15,8 +17,11 @@ Chatgpt_Clone/
 │   ├── src/                # Routes, controllers, services, models, and sockets
 │   ├── test/               # Automated backend integration test suite
 │   └── package.json
+├── render.yaml             # Render Blueprint for 1-click free deployment
+├── deployment/
+│   └── optional-vps/       # Optional paid self-hosted VPS configs (Nginx/systemd)
 ├── docs/                   # Architecture, database schema, and deployment guides
-│   └── deployment/         # Production deployment guide and checklist
+│   └── deployment/         # Free hosting guide & production checklist
 ├── package.json            # Root workspace scripts
 └── README.md
 ```
@@ -25,8 +30,8 @@ Chatgpt_Clone/
 
 ## Prerequisites
 
-- **Node.js**: v18.0.0 or higher
-- **MongoDB**: Local MongoDB instance or MongoDB Atlas cluster URI
+- **Node.js**: v18.0.0 or higher (v20+ LTS recommended)
+- **MongoDB**: Local MongoDB instance or MongoDB Atlas Free M0 Cluster URI
 - **Google Gemini API Key**: For `gemini-3.6-flash` generation and `gemini-embedding-001` embeddings
 - **Pinecone Vector DB API Key**: With an index named `chatgptclone` (768 dimensions, cosine metric)
 
@@ -91,21 +96,22 @@ npm run build:client
 
 ---
 
-## Production Build & Deployment
+## $0/Month Free Deployment (Render + MongoDB Atlas)
 
-The application is architected to run behind a **Single-Origin Reverse Proxy** (e.g. Nginx, Caddy, or Cloudflare).
+The application is configured for deployment on the **Render Free Tier**:
+1. **Frontend**: Render Static Site (`client/dist`) with SPA rewrite rule `/*` → `/index.html`.
+2. **Backend**: Render Free Web Service (`server/`) with Express REST API & Socket.IO.
+3. **Database**: MongoDB Atlas Free (M0 Shared Sandbox) cluster.
 
-1. **Build Frontend**:
-   ```bash
-   npm run build:client
-   ```
-   Generates production static assets in `client/dist/`.
+### Deploy with Render Blueprint (`render.yaml`)
+1. Push repository to GitHub.
+2. In Render, select **New +** → **Blueprint** and connect your repository.
+3. Fill in the prompted secret values (`MONGODB_URL`, `GEMINI_API_KEY`, `PINECONE_API_KEY`).
+4. Click **Apply**.
 
-2. **Start Backend**:
-   ```bash
-   NODE_ENV=production npm start
-   ```
+> [!NOTE]
+> **Free-Tier Inactivity Sleep**: Render Free Web Services sleep after 15 minutes of inactivity. The first request after sleep takes 50–70 seconds to spin up, after which Socket.IO reconnects automatically.
 
-For comprehensive production deployment steps, sample reverse proxy configurations, and verification checklists, refer to:
-- [Deployment Guide](file:///docs/deployment/deployment.md)
-- [Production Checklist & Smoke Test Plan](file:///docs/deployment/production-checklist.md)
+For detailed deployment steps, CORS configuration, and post-deploy smoke tests:
+- [Free Hosting Deployment Guide](file:///docs/deployment/deployment.md)
+- [Operational Checklist & Smoke Test Plan](file:///docs/deployment/production-checklist.md)

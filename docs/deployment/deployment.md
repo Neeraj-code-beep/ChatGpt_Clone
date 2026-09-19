@@ -1,261 +1,164 @@
-# Full-Stack Deployment Guide & Architecture
+# $0/Month Free Hosting Deployment Guide (Render + MongoDB Atlas)
 
-This guide describes how to build, configure, deploy, and operate the full-stack ChatGPT Clone application in production environments.
+This guide describes how to deploy the full-stack ChatGPT Clone application completely **free ($0/month)** using **Render** (Static Site + Web Service) and **MongoDB Atlas** (Free M0 Cluster).
 
 ---
 
-## 1. Production Architecture & Topology
+## 1. Free Deployment Architecture ($0/Month)
 
-The application uses a **Single-Origin Reverse Proxy** topology. This architecture provides maximum security, eliminates cross-origin complexity for cookies and WebSockets, and allows the frontend to be served efficiently as static assets.
+The application is deployed across two decoupled Render services sharing a free-tier MongoDB Atlas cluster:
 
 ```
-                               Browser / Client
+                            Browser Client (HTTPS)
                                       │
-                                      ▼ HTTPS (:443)
-                     ┌───────────────────────────────────┐
-                     │   Reverse Proxy (Nginx / Caddy)   │
-                     └─────────────────┬─────────────────┘
-                                       │
-        ┌──────────────────────────────┼──────────────────────────────┐
-        │                              │                              │
-        ▼                              ▼                              ▼
-  Static Files (/ )             REST API (/api/*)           WebSockets (/socket.io/*)
-  client/dist/                  Node.js Backend             Node.js Backend
-  (HTML, CSS, JS)               localhost:3000              localhost:3000
-                                       │                              │
-                                       └──────────────┬───────────────┘
-                                                      │
-                                   ┌──────────────────┴──────────────────┐
-                                   │                                     │
-                                   ▼                                     ▼
-                            MongoDB Cluster                    AI & Vector Services
-                            (Session & Chats)                  - Google Gemini 3.6 Flash
-                                                               - Gemini Embedding-001
-                                                               - Pinecone Vector DB
-```
-
-### Key Topology Characteristics:
-- **Single Public Origin**: Browser communicates with a single domain (e.g., `https://chat.example.com`).
-- **Static Frontend Serving**: `client/dist/` is served directly by the web server (Nginx/Caddy/Cloudflare Pages), relieving the Node.js event loop from serving static assets.
-- **SPA Routing Fallback**: All unrecognized frontend paths (`/`, `/login`, `/register`, `/chat`, `/chat/:chatId`) are rewritten to `/index.html` for client-side routing by React Router.
-- **Same-Origin API & Sockets**: `/api/*` and `/socket.io/*` paths are proxied internally to the Node.js process listening on `localhost:3000`.
-- **Seamless Authentication**: JWT session cookies (`token`) are sent automatically with `SameSite=Lax`, `HttpOnly`, and `Secure` without third-party cookie restrictions.
-
----
-
-## 2. Environment Variables & Configuration
-
-### Backend Environment (`server/.env`)
-
-All required production variables are validated at startup via `validateEnv()`. If any required variable is missing in production (`NODE_ENV=production`), the backend halts immediately with a fatal error.
-
-| Variable | Required | Default / Mode | Description |
-| :--- | :--- | :--- | :--- |
-| `PORT` | No | `3000` | Local port for HTTP & Socket.IO server to listen on. |
-| `NODE_ENV` | No | `development` | Set to `production` in production. Enforces `Secure` cookies and strict env validation. |
-| `CLIENT_ORIGIN` | Recommended | `false` in prod | Allowed origin for Socket.IO handshake (e.g., `https://chat.example.com`). |
-| `MONGODB_URL` | **Yes** | None | MongoDB Atlas or cluster connection URI. |
-| `JWT_SECRET` | **Yes** | None | High-entropy random secret key (min 64 chars) for signing authentication cookies. |
-| `GEMINI_API_KEY` | **Yes** | None | Google Gemini API key for response generation (`gemini-3.6-flash`) and embeddings (`gemini-embedding-001`). |
-| `PINECONE_API_KEY` | **Yes** | None | Pinecone API key for vector similarity memory index (`chatgptclone`). |
-| `PENDING_REQUEST_TIMEOUT_MS` | No | `60000` | Stale message recovery threshold in ms (must be greater than 45s AI timeout). |
-
-### Frontend Environment (`client/.env`)
-
-| Variable | Required | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `VITE_API_URL` | No | `''` (relative) | Leave unset for single-origin reverse proxy. Set only if hosting API on a separate domain. |
-| `VITE_SOCKET_URL` | No | `''` (relative) | Leave unset for single-origin reverse proxy. Set only if hosting Socket.IO on a separate domain. |
-
-> [!TIP]
-> Leaving `VITE_API_URL` and `VITE_SOCKET_URL` empty allows the same built frontend bundle (`client/dist/`) to be deployed across different domain names and environments without rebuilding.
-
----
-
-## 3. Build & Startup Commands
-
-### Frontend Build
-```bash
-cd client
-npm install
-npm run build
-```
-Output directory: `client/dist/` containing `index.html` and bundled assets in `assets/`.
-
-### Backend Production Startup
-```bash
-cd server
-npm install --omit=dev
-npm start
-```
-Starts `node server.js` directly without dev dependencies.
-
----
-
-## 4. Reverse Proxy Configuration Examples
-
-### Nginx Configuration
-```nginx
-server {
-    listen 80;
-    server_name chat.example.com;
-    return 301 https://$host$request_uri;
-}
-
-server {
-    listen 443 ssl http2;
-    server_name chat.example.com;
-
-    ssl_certificate /etc/letsencrypt/live/chat.example.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/chat.example.com/privkey.pem;
-
-    # 1. Frontend Static Files & SPA Fallback
-    root /var/www/chatgpt-clone/client/dist;
-    index index.html;
-
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-
-    # 2. REST API Reverse Proxy
-    location /api/ {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    # 3. Socket.IO WebSocket Reverse Proxy
-    location /socket.io/ {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "Upgrade";
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_read_timeout 86400s;
-        proxy_send_timeout 86400s;
-    }
-
-    # 4. Health Check
-    location /health {
-        proxy_pass http://127.0.0.1:3000/health;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-    }
-}
-```
-
-### Caddy Configuration
-```caddyfile
-chat.example.com {
-    # 1. REST API
-    handle /api/* {
-        reverse_proxy 127.0.0.1:3000
-    }
-
-    # 2. Socket.IO WebSockets
-    handle /socket.io/* {
-        reverse_proxy 127.0.0.1:3000
-    }
-
-    # 3. Health Check
-    handle /health {
-        reverse_proxy 127.0.0.1:3000
-    }
-
-    # 4. Frontend Static Files with SPA Fallback
-    handle {
-        root * /var/www/chatgpt-clone/client/dist
-        try_files {path} /index.html
-        file_server
-    }
-}
+        ┌─────────────────────────────┴─────────────────────────────┐
+        ▼                                                           ▼
+Render Static Site                                          Render Web Service
+https://<frontend>.onrender.com                             https://<backend>.onrender.com
+(React 19 + Vite 8 SPA)                                     (Node.js + Express 5 + Socket.IO)
+Publish: client/dist                                        Root: server/
+Rewrite: /* -> /index.html                                  Health: /health
+        │                                                           │
+        │── Cross-Origin REST API (credentials: 'include') ─────────┤
+        │── Cross-Origin Socket.IO (withCredentials: true) ─────────┤
+                                                                    │
+                                            ┌───────────────────────┴───────────────────────┐
+                                            ▼                                               ▼
+                                   MongoDB Atlas (Free M0)                         AI & Vector Services
+                                   - 512 MB Storage                                - Google Gemini 3.6 Flash
+                                   - TLS Connection String                         - Gemini Embedding-001
+                                   - Network Access Tradeoff (0.0.0.0/0)           - Pinecone Vector DB
 ```
 
 ---
 
-## 5. Process Management & Graceful Shutdown
+## 2. Free-Tier Behavior & Limitations (Honest Disclosure)
 
-For production process management on a VPS or dedicated host, use **PM2** or **systemd**:
+> [!WARNING]
+> **Free-Tier Inactivity Sleep & Cold Starts**:
+> - Render Free Web Services **spin down (sleep)** after 15 minutes of inactivity.
+> - The **first request** after spinning down will take **50 to 70 seconds** while the container boots up.
+> - While sleeping, active Socket.IO connections will close. When the user visits the frontend and triggers a request, the backend boots up and Socket.IO client automatically reconnects.
+> - **Estimated Hosting Cost**: **$0.00 / month** for hosting. AI provider quotas (Google Gemini and Pinecone) follow their respective free/starter plan limits.
 
-### PM2 Example
-```bash
-cd server
-npm install -g pm2
-pm2 start server.js --name "chatgpt-backend" --env production
-pm2 save
-pm2 startup
+---
+
+## 3. Security & Network Access Architecture
+
+### MongoDB Atlas Network Access: Security Tradeoff vs. Best Practice
+- **Production Best Practice**: On paid cloud infrastructure with static IP addresses, MongoDB Atlas network access should always be locked down strictly to the backend server's static egress IP.
+- **Free-Tier Reality & Tradeoff**: Render Free Web Services operate on dynamic, shared outbound IP pools that change over time without static IP guarantees. Therefore, connecting Render Free to Atlas Free requires setting Atlas Network Access to **`0.0.0.0/0` (Allow Access from Anywhere)**.
+- **Compensating Security Controls**:
+  - All communication uses end-to-end TLS encryption via `mongodb+srv://`.
+  - Database access is strictly guarded by high-entropy database user passwords.
+  - The database user permissions are scoped with least-privilege access restricted only to the `chatgpt_clone` database.
+  - The `0.0.0.0/0` setting is documented as an intentional free-tier connectivity tradeoff, not an architectural ideal.
+
+### Cross-Origin Cookie Security (`SameSite=None; Secure; HttpOnly`)
+- **Public Suffix List (PSL) Separation**: The domain `onrender.com` is registered on Mozilla's Public Suffix List. Consequently, `https://<frontend>.onrender.com` and `https://<backend>.onrender.com` are recognized by web browsers as **cross-site** entities (distinct eTLD+1).
+- **Why SameSite=None is Mandatory**: When making cross-site fetch calls (`credentials: 'include'`) and establishing WebSocket handshakes between separate `onrender.com` subdomains, browsers enforce cross-site cookie restrictions. A cookie marked `SameSite=Lax` or `SameSite=Strict` will be silently blocked by the browser.
+- **Hardened Settings**: In production (`NODE_ENV=production`), cookies are issued with `SameSite=None; Secure; HttpOnly; Max-Age=7d`. This ensures cookies travel securely over HTTPS without exposing JWT tokens to JavaScript (`document.cookie`).
+- **Development Compatibility**: In local development (`NODE_ENV !== 'production'`), `SameSite=Lax` and `Secure=false` are used to allow plain HTTP localhost development.
+
+### Strict CORS Origin Matching
+Express and Socket.IO do not use wildcard `*` or arbitrary origin reflection. All incoming requests are matched strictly against `CLIENT_ORIGIN` (`https://<frontend-name>.onrender.com`).
+
+---
+
+## 4. Build-Time `VITE_*` Configuration
+
+> [!IMPORTANT]
+> **Vite Environment Variables are Baked in at Build Time**:
+> Vite embeds `import.meta.env.VITE_API_URL` and `import.meta.env.VITE_SOCKET_URL` into the compiled JavaScript bundle during `npm run build`.
+> - If you change `VITE_API_URL` or `VITE_SOCKET_URL` in the Render Static Site dashboard, you **must trigger a redeploy (`Clear build cache & deploy`)** for the compiled assets to reflect the updated backend URL.
+> - Backend secrets (`MONGODB_URL`, `JWT_SECRET`, `GEMINI_API_KEY`, `PINECONE_API_KEY`) are scoped strictly to the backend Web Service and are never accessible to the frontend.
+
+---
+
+## 5. Logical Deployment Order
+
+Follow this safe, sequential deployment order:
+
+```
+1. Setup MongoDB Atlas ──► 2. Deploy Backend Web Service ──► 3. Verify /health
+                                                                    │
+6. Run 20-Step Smoke Test ◄── 5. Sync Backend CLIENT_ORIGIN ◄── 4. Build & Deploy Frontend
 ```
 
-### Graceful Shutdown Behavior
-The server process listens for `SIGTERM` and `SIGINT`:
-1. Intercepts termination signal.
-2. Stops accepting new HTTP connections via `server.close()`.
-3. Closes all active Socket.IO connections.
-4. Cleanly closes the MongoDB connection (`mongoose.connection.close()`).
-5. Enforces a 10-second safety backstop timeout (`process.exit(1)` if closing hangs).
-6. Exits with code `0` on successful drain.
+### Step 1: Provision MongoDB Atlas Free Cluster
+1. Sign up at [MongoDB Atlas](https://www.mongodb.com/cloud/atlas).
+2. Create a new cluster and select the **M0 Free (Shared Sandbox)** tier.
+3. In **Database Access**, create a dedicated database user (e.g. `db_user`) with read/write privileges and a secure password.
+4. In **Network Access**, click **Add IP Address** and add `0.0.0.0/0` (noted as the free-tier connectivity tradeoff for dynamic Render IPs).
+5. In **Database Deployments**, click **Connect** → **Drivers** (Node.js) and copy the connection string:
+   ```text
+   mongodb+srv://db_user:<password>@cluster0.xxxxx.mongodb.net/chatgpt_clone?retryWrites=true&w=majority
+   ```
+
+### Step 2: Deploy Backend Web Service on Render
+1. In [Render Dashboard](https://render.com), click **New +** → **Web Service** (or use Blueprint).
+2. Connect your GitHub repository (`ChatGpt_Clone`).
+3. Configure settings:
+   - **Name**: `chatgpt-clone-api`
+   - **Root Directory**: `server`
+   - **Runtime**: `Node`
+   - **Build Command**: `npm ci --omit=dev`
+   - **Start Command**: `npm start`
+   - **Plan**: `Free`
+   - **Health Check Path**: `/health`
+4. Add Environment Variables:
+   - `NODE_ENV=production`
+   - `MONGODB_URL=mongodb+srv://...`
+   - `JWT_SECRET=<secure_64_character_random_string>`
+   - `GEMINI_API_KEY=<your_gemini_key>`
+   - `PINECONE_API_KEY=<your_pinecone_key>`
+   - `CLIENT_ORIGIN=https://chatgpt-clone-client.onrender.com` (placeholder until frontend is named)
+   - `PENDING_REQUEST_TIMEOUT_MS=60000`
+5. Click **Create Web Service**.
+6. Once deployed, verify `https://<backend-name>.onrender.com/health` returns `{"status":"ok","database":"connected"}`.
+7. Copy your backend service URL: `https://<backend-name>.onrender.com`.
+
+### Step 3: Deploy Frontend Static Site on Render
+1. In Render Dashboard, click **New +** → **Static Site**.
+2. Connect your repository.
+3. Configure settings:
+   - **Name**: `chatgpt-clone-client`
+   - **Root Directory**: `client`
+   - **Build Command**: `npm ci && npm run build`
+   - **Publish Directory**: `dist`
+4. Add Environment Variables:
+   - `VITE_API_URL=https://<backend-name>.onrender.com`
+   - `VITE_SOCKET_URL=https://<backend-name>.onrender.com`
+5. Under **Redirects / Rewrites**, add the React Router SPA rule:
+   - **Type**: `Rewrite`
+   - **Source**: `/*`
+   - **Destination**: `/index.html`
+6. Click **Create Static Site**.
+7. Note your frontend URL: `https://<frontend-name>.onrender.com`.
+
+### Step 4: Final CORS Sync
+1. In the Backend Web Service (`chatgpt-clone-api`) settings, update `CLIENT_ORIGIN`:
+   ```text
+   CLIENT_ORIGIN=https://<frontend-name>.onrender.com
+   ```
+2. Save changes (Render will automatically redeploy the backend).
 
 ---
 
-## 6. Health Checks & Monitoring
+## 6. One-Click Blueprint Deployment (`render.yaml`)
 
-### Endpoint
-- **URL**: `GET /health`
-- **Port**: `3000` (or behind reverse proxy `/health`)
-- **Authentication**: None required (public for load balancers / uptime monitors)
+Both services can be provisioned together via [`render.yaml`](file:///render.yaml):
 
-### Status Responses
-
-**Healthy (HTTP 200)**:
-```json
-{
-  "status": "ok",
-  "uptime": 3600,
-  "timestamp": "2026-09-19T01:00:00.000Z",
-  "database": "connected"
-}
-```
-
-**Degraded (HTTP 503)** (when MongoDB connection is disconnected or down):
-```json
-{
-  "status": "degraded",
-  "uptime": 3600,
-  "timestamp": "2026-09-19T01:00:00.000Z",
-  "database": "disconnected"
-}
-```
+1. Push your repository to GitHub.
+2. In Render, select **New +** → **Blueprint** and select your repository.
+3. Render will parse `render.yaml` and configure:
+   - `chatgpt-clone-api` with health check path `/health`.
+   - `chatgpt-clone-client` with SPA rewrite `/*` → `/index.html`.
+4. Enter your secret environment variables (`MONGODB_URL`, `GEMINI_API_KEY`, `PINECONE_API_KEY`).
+5. Click **Apply**.
 
 ---
 
-## 7. Scaling, State & Rate Limiting
+## 7. Optional Self-Hosted VPS Deployment
 
-- **Current Deployment**: Single Node.js backend instance.
-- **In-Memory Rate Limiter**: Limits users to 15 messages per 60-second window in memory.
-- **Horizontal Scaling Consideration**: To scale horizontally across multiple backend instances in the future:
-  - Configure a Socket.IO Redis Adapter (`@socket.io/redis-adapter`) to broadcast events across nodes.
-  - Implement Redis-backed token bucket rate limiting.
-  - Enable sticky sessions on the load balancer for WebSocket handshake stability.
-
----
-
-## 8. Observability & Logging
-
-- **Current Logging**: Application logs startup lifecycle, health events, and AI pipeline diagnostic information via `console.log` / `console.error` to `stdout` and `stderr`.
-- **Log Aggregation**: Production operators should capture `stdout`/`stderr` streams using PM2 logs (`pm2 logs`), systemd journal (`journalctl`), or container logging drivers (Docker/AWS CloudWatch/Datadog).
-- **Future Follow-up**: Migration to structured JSON logging (e.g., Pino or Winston) with configurable log levels (`INFO`, `DEBUG`, `WARN`, `ERROR`).
-
----
-
-## 9. Rollback Strategy
-
-1. **Frontend Rollback**: Re-point static web server root to the previous `client/dist/` build directory.
-2. **Backend Rollback**: Re-deploy the previous server version and restart the process (`pm2 restart chatgpt-backend`).
-3. **Database Schema Compatibility**: MongoDB schemas and compound indexes are fully backward-compatible. Rolling back code will not corrupt existing chat or user data.
-4. **Pinecone Vector Index**: Vector embeddings and memory statuses (`active`/`superseded`) are non-destructive and remain compatible across releases.
+For production deployments requiring dedicated single-origin infrastructure on a VPS with Nginx and systemd, refer to [`deployment/optional-vps/`](file:///deployment/optional-vps/README.md).

@@ -1,0 +1,46 @@
+services:
+  # ----------------------------------------------------------------------------
+  # 1. Backend Web Service (Node.js + Express + Socket.IO) - Render Free Tier
+  # ----------------------------------------------------------------------------
+  - type: web
+    name: chatgpt-clone-api
+    runtime: node
+    rootDir: server
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: CLIENT_ORIGIN
+        sync: false # Set to your frontend static site URL (e.g. https://chatgpt-clone-client.onrender.com)
+      - key: MONGODB_URL
+        sync: false # MongoDB Atlas Free M0 Cluster URI (e.g. mongodb+srv://<user>:<password>@<cluster>.mongodb.net/chatgpt_clone)
+      - key: JWT_SECRET
+        generateValue: true # Auto-generated secure 256-bit random key
+      - key: GEMINI_API_KEY
+        sync: false # Google Gemini API key
+      - key: PINECONE_API_KEY
+        sync: false # Pinecone API key
+      - key: PENDING_REQUEST_TIMEOUT_MS
+        value: "60000"
+
+  # ----------------------------------------------------------------------------
+  # 2. Frontend Static Site (React 19 + Vite 8) - Render Free Tier
+  # ----------------------------------------------------------------------------
+  - type: static
+    name: chatgpt-clone-client
+    rootDir: client
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    routes:
+      # React Router SPA Fallback: rewrites all route paths back to index.html
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        sync: false # Set to backend web service URL (e.g. https://chatgpt-clone-api.onrender.com)
+      - key: VITE_SOCKET_URL
+        sync: false # Set to backend web service URL (e.g. https://chatgpt-clone-api.onrender.com)

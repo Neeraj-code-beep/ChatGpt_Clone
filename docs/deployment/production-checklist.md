@@ -1,123 +1,82 @@
-# Production Deployment & Operational Checklist
+# Free Deployment Checklist & Operational Smoke Test Plan (Render + Atlas)
 
-This document provides the standard 12-step sequential deployment procedure, security deployment checklist, and post-deploy smoke test plan for the ChatGPT Clone application.
-
----
-
-## 1. 12-Step Sequential Deployment Procedure
-
-```
-1. Provision MongoDB ──► 2. Configure Env Vars ──► 3. Build Frontend ──► 4. Prepare Backend
-                                                                                 │
-8. Verify Auth ◄── 7. Configure Health ◄── 6. Start Backend ◄── 5. Setup Reverse Proxy
-       │
-       ▼
-9. Verify Socket.IO ──► 10. Verify Persistence ──► 11. Verify Logout ──► 12. Verify Shutdown
-```
-
-1. **Provision Database**:
-   - Provision a MongoDB cluster (e.g., MongoDB Atlas) with network access restricted to the backend IP/VPC.
-   - Verify Pinecone index `chatgptclone` (768 dimensions, cosine similarity) is active.
-2. **Configure Environment Variables**:
-   - In the backend environment (`server/.env` or hosting panel), configure:
-     - `PORT=3000`
-     - `NODE_ENV=production`
-     - `CLIENT_ORIGIN=https://yourdomain.com`
-     - `MONGODB_URL=mongodb+srv://...`
-     - `JWT_SECRET=<64-char-random-secret>`
-     - `GEMINI_API_KEY=<production-key>`
-     - `PINECONE_API_KEY=<production-key>`
-3. **Build Frontend**:
-   ```bash
-   cd client
-   npm install --include=dev
-   npm run build
-   ```
-   Verify `client/dist/` contains `index.html` and compiled assets in `assets/`.
-4. **Prepare Backend**:
-   ```bash
-   cd server
-   npm install --omit=dev
-   ```
-5. **Configure Reverse Proxy / Static Web Server**:
-   - Configure Nginx/Caddy with SSL/TLS certificate (Let's Encrypt / Cloudflare).
-   - Point root `/` to `client/dist/` with SPA rewrite fallback (`try_files $uri $uri/ /index.html`).
-   - Reverse proxy `/api/` to `http://127.0.0.1:3000`.
-   - Reverse proxy `/socket.io/` to `http://127.0.0.1:3000` with WebSocket upgrade headers.
-6. **Start Backend Process**:
-   ```bash
-   cd server
-   NODE_ENV=production npm start
-   # Or using PM2:
-   pm2 start server.js --name "chatgpt-backend" --env production
-   ```
-7. **Configure & Verify Health Check**:
-   - Query `GET /health` and confirm HTTP 200 with `{"status":"ok","database":"connected"}`.
-8. **Verify Authentication**:
-   - Test user registration and login via the web UI.
-   - Verify `token` cookie is issued with `HttpOnly; Secure; SameSite=Lax`.
-9. **Verify Socket.IO Handshake**:
-   - Open browser developer tools → Network → WS tab.
-   - Confirm WebSocket handshake succeeds using cookie authentication.
-10. **Verify AI Message & Chat Persistence**:
-    - Create a chat and send a prompt.
-    - Confirm real-time AI response is received and rendered in markdown.
-    - Refresh page and verify chat history persists from MongoDB.
-11. **Verify Logout**:
-    - Click logout in the UI.
-    - Confirm `token` cookie is cleared and user is redirected to `/login`.
-12. **Verify Graceful Shutdown**:
-    - Send `SIGTERM` to backend process (`pm2 stop chatgpt-backend`).
-    - Verify logs confirm HTTP/Socket servers closed and MongoDB disconnected cleanly.
+This document provides the pre-deployment security verification, operational checklist, and manual smoke test plan for deploying the ChatGPT Clone on the **$0/month Free Tier** using **Render** and **MongoDB Atlas Free (M0)**.
 
 ---
 
-## 2. Production Security Deployment Checklist
+## 1. Pre-Deployment Configuration & Security Checklist
 
-- [ ] **Strong JWT Secret**: `JWT_SECRET` is generated using a cryptographically secure random generator (min 64 characters) and never committed to git.
-- [ ] **Production Node Environment**: `NODE_ENV=production` is set so auth cookies are marked `Secure` (HTTPS only) and environment validator runs in strict fail-fast mode.
-- [ ] **HTTPS Enforced**: All public traffic is forced to HTTPS over port 443 with HSTS enabled.
-- [ ] **Cookie Security Flags**: Auth cookies use `HttpOnly`, `Secure`, and `SameSite=Lax`. JavaScript cannot read the session token.
-- [ ] **Explicit Client Origin**: `CLIENT_ORIGIN` matches the exact public domain in production; origin reflection is disabled.
-- [ ] **Database Access Controls**: MongoDB user credentials use least-privilege permissions with IP whitelist.
-- [ ] **AI & Vector Secrets**: `GEMINI_API_KEY` and `PINECONE_API_KEY` are provided exclusively via environment variables and never logged or exposed.
-- [ ] **No Committed Environment Files**: `.env` and `.env.*` are excluded by `.gitignore`.
-- [ ] **SPA Fallback Routing**: Reverse proxy serves `index.html` for unknown routes without directory browsing enabled.
-- [ ] **WebSocket Proxy Headers**: Reverse proxy forwards `Upgrade: websocket` and `Connection: "Upgrade"` headers for Socket.IO.
+- [ ] **MongoDB Atlas Free Cluster**: M0 cluster created in target region with TLS (`mongodb+srv://`) enabled.
+- [ ] **Database User Scoping**: Dedicated database user created with read/write permissions restricted to `chatgpt_clone`.
+- [ ] **Atlas Network Access Tradeoff**: `0.0.0.0/0` added as the required free-tier connectivity tradeoff for dynamic Render outbound IPs.
+- [ ] **Pinecone Index**: Index `chatgptclone` (768 dimensions, cosine metric) verified active.
+- [ ] **Google Gemini API Key**: API key generated with active quotas for `gemini-3.6-flash` and `gemini-embedding-001`.
+- [ ] **Render Account**: Account created and connected to repository.
 
 ---
 
-## 3. Post-Deployment Manual Smoke Test Plan
+## 2. Render Deployment Checklist
 
-Execute these 18 manual verification steps immediately following a deployment to confirm end-to-end functionality:
+- [ ] **1. Backend Web Service**: Render Web Service (`chatgpt-clone-api`) created with Root Directory `server`.
+- [ ] **2. Backend Build Command**: `npm ci --omit=dev` configured.
+- [ ] **3. Backend Start Command**: `npm start` configured.
+- [ ] **4. Backend Health Check**: `healthCheckPath: /health` configured.
+- [ ] **5. Backend Plan**: `Free` plan selected.
+- [ ] **6. Backend Environment Variables**:
+  - `NODE_ENV=production`
+  - `MONGODB_URL=mongodb+srv://...`
+  - `JWT_SECRET=<64-char-random-string>`
+  - `GEMINI_API_KEY=<key>`
+  - `PINECONE_API_KEY=<key>`
+  - `CLIENT_ORIGIN=https://<your-client-name>.onrender.com`
+  - `PENDING_REQUEST_TIMEOUT_MS=60000`
+- [ ] **7. Backend Health Verification**: `https://<backend-name>.onrender.com/health` returns HTTP 200 `{"status":"ok","database":"connected"}`.
+- [ ] **8. Frontend Static Site**: Render Static Site (`chatgpt-clone-client`) created with Root Directory `client`.
+- [ ] **9. Frontend Build Command**: `npm ci && npm run build` configured.
+- [ ] **10. Frontend Publish Directory**: `dist` configured.
+- [ ] **11. Frontend Build-Time Variables**:
+  - `VITE_API_URL=https://<backend-name>.onrender.com`
+  - `VITE_SOCKET_URL=https://<backend-name>.onrender.com`
+  *(Note: Must be set prior to frontend build step).*
+- [ ] **12. Frontend SPA Rewrite**: Rewrite rule `/*` → `/index.html` configured in Render Redirects/Rewrites.
+- [ ] **13. CORS Sync**: Confirmed `CLIENT_ORIGIN` on backend matches exact frontend URL (`https://<frontend-name>.onrender.com`).
 
-| Step # | Action | Expected Result |
+---
+
+## 3. Post-Deployment 20-Step Manual Smoke Test Plan
+
+Execute these 20 manual verification steps in the production browser:
+
+| Step # | Action | Verification Criteria |
 | :--- | :--- | :--- |
-| **1** | Open `https://yourdomain.com/health` | Returns HTTP 200 `{"status":"ok","database":"connected"}` |
-| **2** | Navigate to `/register` and create a new account | Registration succeeds, cookie set, redirected to `/chat` |
-| **3** | Click Logout | Cookie cleared, redirected to `/login` |
-| **4** | Login with newly registered credentials | Login succeeds, redirected to `/chat` |
-| **5** | Hard refresh browser on `/chat` | Session persists, authenticated user profile loaded |
-| **6** | Create a new chat via sidebar "+ New Chat" | New chat appears in sidebar and is selected in main view |
-| **7** | Send message: "What is quantum computing?" | User bubble appears, loading indicator shows |
-| **8** | Receive AI response via Socket.IO | Formatted markdown response renders cleanly |
-| **9** | Hard refresh the browser on `/chat/:chatId` | Chat and message history persist chronologically |
-| **10** | Rename chat title from sidebar options menu | Title updates in sidebar and header |
-| **11** | Create a second chat | Second chat added to sidebar list |
-| **12** | Switch between the two chats in sidebar | Active chat messages switch seamlessly without bleed |
-| **13** | Send message in second chat | Response received and stored independently |
-| **14** | Delete the second chat | Chat removed from sidebar and database |
-| **15** | Log out of the account | Session terminated cleanly |
-| **16** | Log back in with the same account | First chat and message history still present |
-| **17** | Directly navigate to an invalid chat ID `/chat/507f1f77bcf86cd799439011` | Application handles gracefully (redirects or displays empty state) |
-| **18** | Navigate to an unknown route `/nonexistent-page` | SPA router redirects cleanly to landing page `/` |
+| **1** | Open `https://<backend-name>.onrender.com/health` | Returns HTTP 200 `{"status":"ok","database":"connected"}` |
+| **2** | Open `https://<frontend-name>.onrender.com` | Landing page loads cleanly over HTTPS |
+| **3** | Click "Get Started" / Navigate to `/register` | Registration form renders |
+| **4** | Register a new user (`First Last`, `email`, `password`) | Form submits, issues cookie (`SameSite=None; Secure; HttpOnly`), redirects to `/chat` |
+| **5** | Click Logout in user profile menu | Session destroyed, cookie cleared, redirects to `/login` |
+| **6** | Log in with newly registered credentials | Login succeeds, redirected to `/chat` |
+| **7** | Hard refresh browser (Ctrl+F5 / Cmd+Shift+R) | Session persists seamlessly; `GET /api/auth/me` returns profile |
+| **8** | Click "+ New Chat" button in sidebar | New chat created and selected in main window |
+| **9** | Type message: "Explain vector embeddings in 2 sentences" | User turn appears; loading indicator shows |
+| **10** | Receive AI response via Socket.IO | Response renders with formatted markdown, syntax highlighting, and copy button |
+| **11** | Hard refresh on `/chat/:chatId` | Chat thread and message history persist chronologically from MongoDB Atlas |
+| **12** | Rename chat title from sidebar options menu | Title updates in sidebar and header |
+| **13** | Create a second chat | Second chat added to sidebar list |
+| **14** | Switch between chats in sidebar | Active chat messages switch instantly without state bleed |
+| **15** | Send message in second chat | Response received and stored independently |
+| **16** | Delete second chat | Chat deleted from sidebar and database with cascade message deletion |
+| **17** | Log out of the application | Session terminated |
+| **18** | Log back in with the same account | First chat and message history remain intact |
+| **19** | Direct URL test: Navigate to `/nonexistent-route` | SPA router captures request and redirects cleanly to `/` |
+| **20** | Cold Start & Reconnect Verification | After 15 minutes of inactivity, refresh page and verify backend wakes up and reconnects Socket.IO cleanly |
 
 ---
 
-## 4. Rollback Plan
+## 4. Security Verification Checklist
 
-If a deployment fails during verification:
-
-1. **Static Frontend**: Re-point the web server root to the previous `dist/` build directory or re-run `npm run build` on the previous release commit.
-2. **Backend**: Stop the service (`pm2 stop chatgpt-backend`), check out the previous release tag, install production dependencies (`npm install --omit=dev`), and restart the process (`pm2 restart chatgpt-backend`).
-3. **Database Integrity**: The MongoDB schema additions (such as the `{ user: 1, lastActivity: -1 }` index) are backward-compatible and do not require rollbacks or data migrations.
+- [ ] **Cross-Origin Cookie Security**: Cookies use `HttpOnly: true`, `Secure: true`, and `SameSite: 'none'` in production.
+- [ ] **No Secrets in Frontend Bundle**: Verified `client/dist/` contains zero API keys, secrets, or JWT tokens.
+- [ ] **Strict CORS Enforcement**: Express REST routes and Socket.IO accept connections only from `CLIENT_ORIGIN`. Wildcard `*` and origin reflection are disabled.
+- [ ] **Zero Token in JS**: JWT is never stored in `localStorage`, `sessionStorage`, or React state.
+- [ ] **Database Network Security**: MongoDB Atlas user utilizes strong credentials and least-privilege scoping.
+- [ ] **Fail-Fast Boot**: Backend halts immediately if any required environment variable is missing.

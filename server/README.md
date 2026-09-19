@@ -2,12 +2,15 @@
 
 A real-time conversational AI backend engine powered by Node.js, Express 5, Socket.IO, Google Gemini (`gemini-3.6-flash`), and Pinecone vector search for contextual long-term memory retrieval.
 
+Designed to run as a **Free Web Service on Render** with a **MongoDB Atlas Free (M0)** database.
+
 ---
 
 ## Key Capabilities
 
 - **Real-Time WebSocket Engine:** Socket.IO integration with HTTP-only JWT cookie verification on connection handshake.
-- **Vector Search & Memory Persistence:** Dual-layer architecture indexing 768-dimensional embeddings in Pinecone (`gemini-embedding-001`) alongside chronological conversation history in MongoDB.
+- **Cross-Origin Security & CORS:** Strict CORS origin matching with `Access-Control-Allow-Credentials: true` and `SameSite=None; Secure; HttpOnly` cookie security in production.
+- **Vector Search & Memory Persistence:** Dual-layer architecture indexing 768-dimensional embeddings in Pinecone (`gemini-embedding-001`) alongside chronological conversation history in MongoDB Atlas.
 - **Idempotency & Concurrency:** Compound unique index `{ chat, requestId }` deduplicates retried requests; Compare-And-Swap (CAS) state machine automatically recovers stale pending messages.
 - **In-Memory Rate Limiting:** Enforces 15 messages per 60-second sliding window per authenticated user.
 - **Fail-Fast Validation & Health Monitoring:** Validates required environment variables at boot; exposes `GET /health` with real-time MongoDB connectivity status.
@@ -64,15 +67,15 @@ A real-time conversational AI backend engine powered by Node.js, Express 5, Sock
 
 ## Environment Configuration
 
-Configure variables in `server/.env`:
+Configure variables in `server/.env` (or in Render Web Service Dashboard):
 
 | Variable | Required | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `PORT` | No | `3000` | Server listen port. |
-| `NODE_ENV` | No | `development` | Set to `production` for secure cookie enforcement and strict env validation. |
-| `CLIENT_ORIGIN` | Recommended | `http://localhost:5173` (dev) | Allowed frontend origin for Socket.IO handshake. |
-| `MONGODB_URL` | **Yes** | None | MongoDB Atlas or cluster connection URI. |
-| `JWT_SECRET` | **Yes** | None | Secret key for signing authentication JWT cookies (min 64 chars in prod). |
+| `PORT` | No | `3000` (or Render assigned) | Server listen port. |
+| `NODE_ENV` | No | `development` | Set to `production` in production to enforce `Secure; SameSite=None` cookies and strict env validation. |
+| `CLIENT_ORIGIN` | Recommended | `http://localhost:5173` (dev) | Allowed frontend origin for CORS and Socket.IO (e.g. `https://<frontend>.onrender.com`). |
+| `MONGODB_URL` | **Yes** | None | MongoDB Atlas Free M0 cluster connection URI. |
+| `JWT_SECRET` | **Yes** | None | Secret key for signing authentication JWT cookies. |
 | `GEMINI_API_KEY` | **Yes** | None | Google Gemini API key. |
 | `PINECONE_API_KEY` | **Yes** | None | Pinecone vector database API key. |
 | `PENDING_REQUEST_TIMEOUT_MS` | No | `60000` | CAS stale message recovery threshold (ms). |
@@ -97,9 +100,10 @@ npm test
 
 ---
 
-## Deployment Considerations
+## Free Hosting Deployment on Render
 
-- **Topology**: Recommended behind a single-origin reverse proxy forwarding `/api` and `/socket.io` to `http://127.0.0.1:3000`.
-- **Process Management**: Use PM2 (`pm2 start server.js --name "chatgpt-backend" --env production`) or systemd.
-- **Graceful Shutdown**: Intercepts `SIGTERM` / `SIGINT`, closes HTTP & Socket connections, and disconnects MongoDB with a 10s safety backstop.
-- **Scaling**: For multi-instance scaling, integrate `@socket.io/redis-adapter` and Redis-backed rate limiting.
+1. Create a **Web Service** on Render with Root Directory `server`.
+2. Set Build Command: `npm ci --omit=dev` and Start Command: `npm start`.
+3. Set Plan: `Free`.
+4. Configure required Environment Variables (`NODE_ENV=production`, `MONGODB_URL`, `JWT_SECRET`, `GEMINI_API_KEY`, `PINECONE_API_KEY`, `CLIENT_ORIGIN`).
+5. Render assigns `PORT` automatically and provides public HTTPS endpoint.
