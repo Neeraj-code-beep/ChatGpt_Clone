@@ -9,7 +9,7 @@ import { disconnectSocket } from '../services/socket';
 
 const AuthContext = createContext(null);
 
-const STORAGE_KEY = 'helper_session_user';
+const STORAGE_KEY = 'nexa_session_user';
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {

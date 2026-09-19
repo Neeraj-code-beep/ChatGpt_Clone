@@ -1,6 +1,6 @@
-# ChatGPT Clone — Frontend Client
+# Nexa — Frontend Client
 
-The web client for the ChatGPT Clone application, built with React 19, Vite 8, Tailwind CSS v4, and Socket.IO Client.
+The web client for Nexa, built with React 19, Vite 8, Tailwind CSS v4, and Socket.IO Client.
 
 Designed to be hosted as a **Free Static Site on Render**.
 

@@ -138,7 +138,7 @@ export default function Sidebar({
             <div className="w-6 h-6 rounded-lg bg-[#27272A] border border-[#3F3F46] flex items-center justify-center text-xs text-[#FAFAFA]">
               <Sparkles className="w-3 h-3 text-[#D4D4D8]" />
             </div>
-            <span className="text-sm font-semibold tracking-tight">Helper</span>
+            <span className="text-sm font-semibold tracking-tight">Nexa</span>
           </Link>
 
           {/* Close button for mobile */}

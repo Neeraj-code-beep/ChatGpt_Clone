@@ -22,7 +22,7 @@ async function classifyQueryIntent(query) {
   }
 
   const prompt = `
-You are the query intent classifier for an AI assistant called Helper.
+You are the query intent classifier for an AI assistant called Nexa.
 
 Analyze the user's query and determine what type of long-term memory
 would be most useful for answering it.

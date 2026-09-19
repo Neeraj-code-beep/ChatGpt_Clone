@@ -29,7 +29,7 @@ export default function LandingPage() {
             className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[#27272A] bg-[#18181B] text-xs text-[#A1A1AA] mb-6 shadow-sm"
           >
             <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
-            <span className="font-mono text-[11px]">Helper AI 1.0</span>
+            <span className="font-mono text-[11px]">Nexa 1.0</span>
             <span className="text-[#3F3F46]">•</span>
             <span>Real-time Conversational Memory</span>
           </motion.div>
@@ -51,7 +51,7 @@ export default function LandingPage() {
             transition={{ duration: 0.35, delay: 0.1 }}
             className="text-sm sm:text-base md:text-lg text-[#A1A1AA] mt-6 max-w-2xl mx-auto leading-relaxed"
           >
-            Helper pairs low-latency reasoning with vector-indexed conversational memory.
+            Nexa pairs low-latency reasoning with vector-indexed conversational memory.
             Your context, decisions, and preferences persist seamlessly across sessions.
           </motion.p>
 
@@ -130,7 +130,7 @@ export default function LandingPage() {
                 Engineered for serious interaction.
               </h2>
               <p className="text-xs sm:text-sm text-[#A1A1AA] mt-2.5 leading-relaxed">
-                Not a generic wrapper. Helper is built from the ground up with idempotent request
+                Not a generic wrapper. Nexa is built from the ground up with idempotent request
                 guarantees, hybrid context retrieval, and low-latency response delivery.
               </p>
             </div>
@@ -199,14 +199,14 @@ export default function LandingPage() {
               Ready to experience context-aware conversation?
             </h2>
             <p className="text-xs sm:text-sm text-[#A1A1AA] mt-2 max-w-md mx-auto leading-relaxed">
-              Create an account in seconds and start chatting with Helper.
+              Create an account in seconds and start chatting with Nexa.
             </p>
             <div className="mt-6 flex justify-center">
               <Link
                 to="/register"
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#FAFAFA] text-[#121214] font-medium text-xs sm:text-sm hover:bg-[#E4E4E7] transition-all shadow-md cursor-pointer"
               >
-                <span>Launch Helper Workspace</span>
+                <span>Launch Nexa Workspace</span>
                 <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
@@ -218,7 +218,7 @@ export default function LandingPage() {
       <footer className="border-t border-[#27272A]/70 py-6 text-center text-xs text-[#71717A] bg-[#0E0E10]">
         <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-[#FAFAFA]">Helper</span>
+            <span className="font-semibold text-[#FAFAFA]">Nexa</span>
             <span>• Full-Stack AI Chatbot Workspace</span>
           </div>
           <div className="text-[11px] font-mono">

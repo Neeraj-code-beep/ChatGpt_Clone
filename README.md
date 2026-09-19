@@ -1,6 +1,12 @@
-# ChatGPT Clone
+# Nexa
+> Your AI, with context.
 
-A full-stack, real-time conversational AI workspace featuring a React + Vite frontend and a Node.js + Express + Socket.IO backend powered by Google Gemini and Pinecone vector search.
+Nexa is a full-stack, real-time conversational AI application featuring:
+- **Authenticated conversations** with secure cookie-based session management
+- **Long-term memory** that extracts and persists key user context across sessions
+- **Semantic retrieval** via 768-dimensional vector embeddings powered by Pinecone
+- **Contextual responses** generated with Google Gemini
+- **Real-time Socket.IO communication** with idempotent request guarantees
 
 Designed for **$0/month free hosting** on Render and MongoDB Atlas.
 

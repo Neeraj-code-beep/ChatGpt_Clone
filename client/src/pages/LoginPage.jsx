@@ -64,7 +64,7 @@ export default function LoginPage() {
               <Sparkles className="w-4 h-4 text-[#D4D4D8]" />
             </div>
             <h1 className="text-xl font-semibold text-[#FAFAFA] tracking-tight">
-              Log in to Helper
+              Log in to Nexa
             </h1>
             <p className="text-xs text-[#A1A1AA] mt-1">
               Enter your credentials to access your conversational workspace.

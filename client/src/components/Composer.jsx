@@ -49,7 +49,7 @@ export default function Composer({ onSendMessage, isProcessing = false, disabled
           value={content}
           onChange={(e) => setContent(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Ask Helper anything... (Shift+Enter for newline)"
+          placeholder="Ask Nexa anything... (Shift+Enter for newline)"
           rows={1}
           disabled={disabled}
           className="flex-1 max-h-48 resize-none bg-transparent px-3 py-2 text-sm text-[#FAFAFA] placeholder:text-[#71717A] focus:outline-none leading-relaxed font-sans"
@@ -75,7 +75,7 @@ export default function Composer({ onSendMessage, isProcessing = false, disabled
       </form>
 
       <div className="flex items-center justify-between text-[11px] text-[#71717A] px-3 mt-1.5 font-mono">
-        <span>Helper v1.0 • Conversational Memory</span>
+        <span>Nexa v1.0 • Conversational Memory</span>
         <span className="hidden sm:inline">Press Enter ↵ to send</span>
       </div>
     </div>

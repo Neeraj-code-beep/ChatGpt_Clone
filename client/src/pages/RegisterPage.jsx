@@ -53,7 +53,7 @@ export default function RegisterPage() {
       addToast({
         type: 'success',
         title: 'Account created',
-        message: 'Welcome to Helper. Your workspace is ready.',
+        message: 'Welcome to Nexa. Your workspace is ready.',
       });
       navigate('/chat', { replace: true });
     } else {
@@ -78,7 +78,7 @@ export default function RegisterPage() {
               <Sparkles className="w-4 h-4 text-[#D4D4D8]" />
             </div>
             <h1 className="text-xl font-semibold text-[#FAFAFA] tracking-tight">
-              Create your Helper account
+              Create your Nexa account
             </h1>
             <p className="text-xs text-[#A1A1AA] mt-1">
               Start conversations with long-term memory retrieval.

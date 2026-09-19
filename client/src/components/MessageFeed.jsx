@@ -93,7 +93,7 @@ export default function MessageFeed({
           transition={{ duration: 0.25, delay: 0.05 }}
           className="text-lg sm:text-xl font-semibold text-[#FAFAFA] tracking-tight"
         >
-          How can Helper assist you today?
+          How can Nexa assist you today?
         </motion.h2>
 
         <motion.p
@@ -186,7 +186,7 @@ export default function MessageFeed({
             >
               <div className="flex items-center gap-2 mb-1 px-0.5">
                 <span className="text-[11px] font-medium text-[#71717A]">
-                  {isUser ? 'You' : 'Helper'}
+                  {isUser ? 'You' : 'Nexa'}
                 </span>
                 {isPending && (
                   <span className="inline-flex items-center gap-1 text-[10px] font-mono text-[#A1A1AA]">

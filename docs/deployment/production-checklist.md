@@ -1,6 +1,6 @@
 # Free Deployment Checklist & Operational Smoke Test Plan (Render + Atlas)
 
-This document provides the pre-deployment security verification, operational checklist, and manual smoke test plan for deploying the ChatGPT Clone on the **$0/month Free Tier** using **Render** and **MongoDB Atlas Free (M0)**.
+This document provides the pre-deployment security verification, operational checklist, and manual smoke test plan for deploying Nexa on the **$0/month Free Tier** using **Render** and **MongoDB Atlas Free (M0)**.
 
 ---
 

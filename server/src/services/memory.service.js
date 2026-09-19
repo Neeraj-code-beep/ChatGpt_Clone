@@ -16,10 +16,10 @@ const MIN_RETRIEVAL_SIMILARITY = 0.7;
 
 async function extractMemories({ userMessage, aiResponse }) {
   const prompt = `
-You are a memory extraction system for an AI assistant called Helper.
+You are a memory extraction system for an AI assistant called Nexa.
 
 Your job is to identify information from the conversation that would be
-useful for Helper to remember in future conversations.
+useful for Nexa to remember in future conversations.
 
 USER MESSAGE:
 ${userMessage}
@@ -38,7 +38,7 @@ Good memories include:
 - Skills the user is learning
 - Important personal context explicitly provided by the user
 - Technical/project decisions
-- Important facts the user wants Helper to remember
+- Important facts the user wants Nexa to remember
 
 Do NOT store:
 - Greetings
@@ -85,7 +85,7 @@ Rules:
 - importance must be between 0 and 1.
 - confidence must be between 0 and 1.
 - Keep memory text short and standalone.
-- Write memories from Helper's perspective so they make sense later.
+- Write memories from Nexa's perspective so they make sense later.
 - Never invent information.
 `;
 
@@ -135,7 +135,7 @@ function decideMemoryAction({ newMemory, similarMemories }) {
 
 async function judgeMemory({ existingMemory, newMemory }) {
   const prompt = `
-You are the memory management system for an AI assistant called Helper.
+You are the memory management system for an AI assistant called Nexa.
 
 Your job is to compare an existing long-term memory with a newly extracted
 memory and decide what should happen.

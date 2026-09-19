@@ -1,6 +1,6 @@
 # $0/Month Free Hosting Deployment Guide (Render + MongoDB Atlas)
 
-This guide describes how to deploy the full-stack ChatGPT Clone application completely **free ($0/month)** using **Render** (Static Site + Web Service) and **MongoDB Atlas** (Free M0 Cluster).
+This guide describes how to deploy the full-stack Nexa application completely **free ($0/month)** using **Render** (Static Site + Web Service) and **MongoDB Atlas** (Free M0 Cluster).
 
 ---
 

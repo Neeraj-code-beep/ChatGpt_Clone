@@ -1,6 +1,6 @@
 # Frontend Architecture & Full-Stack Integration Specification
 
-This document details the frontend architecture, client subsystems, and full-stack integration contracts for the **Helper AI Conversational Workspace**.
+This document details the frontend architecture, client subsystems, and full-stack integration contracts for the **Nexa Conversational Workspace**.
 
 ---
 

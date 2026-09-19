@@ -1,6 +1,6 @@
-# ChatGPT Clone — Backend Service
+# Nexa — Backend Service
 
-A real-time conversational AI backend engine powered by Node.js, Express 5, Socket.IO, Google Gemini (`gemini-3.6-flash`), and Pinecone vector search for contextual long-term memory retrieval.
+A real-time conversational AI backend engine for Nexa powered by Node.js, Express 5, Socket.IO, Google Gemini (`gemini-3.6-flash`), and Pinecone vector search for contextual long-term memory retrieval.
 
 Designed to run as a **Free Web Service on Render** with a **MongoDB Atlas Free (M0)** database.
 

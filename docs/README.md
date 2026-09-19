@@ -1,6 +1,6 @@
-# ChatGPT Clone — Documentation Index
+# Nexa — Documentation Index
 
-Welcome to the architectural and operational documentation for the Node.js AI Chat backend.
+Welcome to the architectural and operational documentation for the Nexa backend service.
 
 ## Overview
 

@@ -172,7 +172,7 @@ async function runTests() {
       chat: chatA._id,
       user: testUserA._id,
       role: 'user',
-      content: 'Hello Helper',
+      content: 'Hello Nexa',
       requestId: 'req-001',
       requestStatus: 'completed',
     });

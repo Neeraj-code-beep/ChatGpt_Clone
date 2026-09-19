@@ -20,7 +20,7 @@ export default function Navbar() {
           <div className="w-7 h-7 rounded-lg bg-[#27272A] border border-[#3F3F46] flex items-center justify-center text-xs text-[#FAFAFA]">
             <Sparkles className="w-3.5 h-3.5 text-[#D4D4D8]" />
           </div>
-          <span className="text-base tracking-tight font-semibold">Helper</span>
+          <span className="text-base tracking-tight font-semibold">Nexa</span>
           <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded border border-[#3F3F46]/80 text-[#A1A1AA] bg-[#18181B]">
             Workspace
           </span>
